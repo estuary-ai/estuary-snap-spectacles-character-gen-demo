@@ -41,6 +41,11 @@ export class CharacterGenDemo extends BaseScriptComponent {
 
     // ==================== Inputs (set in Inspector) ====================
 
+    /** Estuary API key — set in Inspector or leave empty to use the constant above */
+    @input
+    @allowUndefined
+    apiKey: string;
+
     /** Paper-San.png texture from Resources panel */
     @input
     paperSanTexture: Texture;
@@ -73,7 +78,9 @@ export class CharacterGenDemo extends BaseScriptComponent {
     onAwake() {
         print('[CharacterGenDemo] ===== INITIALIZING =====');
         print('[CharacterGenDemo] Server: ' + SERVER_URL);
-        print('[CharacterGenDemo] API Key: ' + (API_KEY === 'YOUR_API_KEY_HERE' ? 'NOT SET (replace YOUR_API_KEY_HERE!)' : API_KEY.substring(0, 8) + '...'));
+        // @ts-ignore
+        const apiKeyDisplay = (this.apiKey || API_KEY) as string;
+        print('[CharacterGenDemo] API Key: ' + (apiKeyDisplay === 'YOUR_API_KEY_HERE' ? 'NOT SET (replace YOUR_API_KEY_HERE!)' : apiKeyDisplay.substring(0, 8) + '...'));
         print('[CharacterGenDemo] Player ID: ' + PLAYER_ID);
 
         // Log input state
@@ -240,11 +247,12 @@ export class CharacterGenDemo extends BaseScriptComponent {
             print(`[CharacterGenDemo] [1/5] Base64 payload: ${Math.round(imageBase64.length / 1024)}KB (${imageBase64.length} chars)`);
 
             // Step 2: Create HTTP client
+            const resolvedApiKey = this.apiKey || API_KEY;
             print('[CharacterGenDemo] [2/5] Creating HTTP client...');
-            print('[CharacterGenDemo] [2/5] Config: serverUrl=' + SERVER_URL + ', playerId=' + PLAYER_ID);
+            print('[CharacterGenDemo] [2/5] Config: serverUrl=' + SERVER_URL + ', playerId=' + PLAYER_ID + ', apiKey=' + (resolvedApiKey === 'YOUR_API_KEY_HERE' ? 'NOT SET!' : 'set'));
             const config: EstuaryConfig = {
                 serverUrl: SERVER_URL,
-                apiKey: API_KEY,
+                apiKey: resolvedApiKey,
                 characterId: '', // not needed for character creation
                 playerId: PLAYER_ID,
                 debugLogging: true,
@@ -380,6 +388,7 @@ export class CharacterGenDemo extends BaseScriptComponent {
                     for (let r = 0; r < rootCount && !material; r++) {
                         // @ts-ignore
                         const root = global.scene.getRootObject(r);
+                        // @ts-ignore - getComponentsRecursive exists at runtime
                         const rmvs = root.getComponentsRecursive('Component.RenderMeshVisual') as any[];
                         print('[CharacterGenDemo]   Root ' + r + ' "' + root.name + '": ' + rmvs.length + ' RenderMeshVisuals');
                         for (let i = 0; i < rmvs.length && !material; i++) {
