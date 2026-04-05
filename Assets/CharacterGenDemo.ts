@@ -6,14 +6,16 @@
  * Setup in Lens Studio:
  * 1. Add this script to a SceneObject in your scene
  * 2. Drag Paper-San.png from Resources to the paperSanTexture input
- * 3. Create or select any Material and drag to defaultMaterial input
- * 4. Connect the InternetModule from your scene to internetModule input
- * 5. Add a PinchButton prefab from SpectaclesInteractionKit to your scene
- *    - Drag the PinchButton SceneObject to generateButtonObject input
- * 6. Create a SceneObject with a Text3D component for status display
- *    - Drag it to statusTextObject input
- * 7. Replace API_KEY constant with your Estuary API key
- * 8. Deploy to Spectacles (network calls don't work in Preview)
+ * 3. (Optional) Create a Material and drag to defaultMaterial input
+ *    - If omitted, a material is auto-discovered from existing scene objects
+ * 4. (Optional) Add a PinchButton prefab and drag to generateButtonObject
+ *    - If omitted, generation auto-starts after 3 seconds
+ * 5. (Optional) Create a SceneObject with Text3D for status display
+ *    - If omitted, a Text3D is created at runtime
+ * 6. Replace API_KEY constant with your Estuary API key
+ * 7. Deploy to Spectacles (network calls don't work in Preview)
+ *
+ * InternetModule is obtained automatically via require().
  */
 
 import { setInternetModule } from './estuary-lens-studio-sdk/src/Core/EstuaryClient';
@@ -43,13 +45,10 @@ export class CharacterGenDemo extends BaseScriptComponent {
     @input
     paperSanTexture: Texture;
 
-    /** Any PBR material from the scene (GLB embeds its own materials) */
+    /** Any PBR material from the scene (GLB embeds its own materials, so this is a formality) */
     @input
+    @allowUndefined
     defaultMaterial: Material;
-
-    /** InternetModule from the scene (required for network calls) */
-    @input
-    internetModule: InternetModule;
 
     /** Optional: SceneObject with a Text3D component for status display */
     @input
@@ -74,9 +73,11 @@ export class CharacterGenDemo extends BaseScriptComponent {
     onAwake() {
         print('[CharacterGenDemo] Initializing...');
 
-        // Set up InternetModule (required before any network calls)
-        setInternetModule(this.internetModule);
-        print('[CharacterGenDemo] InternetModule configured');
+        // Set up InternetModule via require() (needed for GLB download)
+        // @ts-ignore - Lens Studio module system
+        const internetModule = require('LensStudio:InternetModule') as InternetModule;
+        setInternetModule(internetModule);
+        print('[CharacterGenDemo] InternetModule configured via require()');
 
         // Set up status text display
         if (this.statusTextObject) {
@@ -87,14 +88,43 @@ export class CharacterGenDemo extends BaseScriptComponent {
             } else {
                 print('[CharacterGenDemo] WARNING: statusTextObject has no Text3D component');
             }
+        } else {
+            // Create a Text3D component at runtime
+            print('[CharacterGenDemo] No statusTextObject provided, creating Text3D at runtime');
+            try {
+                // @ts-ignore - Lens Studio global.scene API
+                const textObj = global.scene.createSceneObject('StatusText');
+                textObj.setParent(this.getSceneObject());
+                textObj.getTransform().setLocalPosition(new vec3(0, 10, -50));
+                this.statusText3D = textObj.createComponent('Component.Text3D');
+                if (this.statusText3D) {
+                    this.statusText3D.text = 'Starting...';
+                    this.statusText3D.size = 12;
+                    print('[CharacterGenDemo] Runtime Text3D created');
+                }
+            } catch (e: any) {
+                print('[CharacterGenDemo] Could not create Text3D: ' + (e.message || e));
+            }
         }
 
-        // Discover and bind PinchButton on generateButtonObject
+        // Discover and bind PinchButton, or auto-start after delay
         if (this.generateButtonObject) {
             this.bindPinchButton();
         } else {
-            print('[CharacterGenDemo] ERROR: No generateButtonObject assigned! Cannot start generation.');
-            return;
+            print('[CharacterGenDemo] No generateButtonObject assigned');
+            print('[CharacterGenDemo] Auto-starting generation in 3 seconds...');
+            this.setStatus('Starting in 3s...');
+
+            // @ts-ignore - Lens Studio getTime global
+            const startTime = getTime();
+            const delayEvent = this.createEvent('UpdateEvent');
+            delayEvent.bind(() => {
+                // @ts-ignore - Lens Studio getTime global
+                if (getTime() - startTime >= 3.0) {
+                    delayEvent.enabled = false;
+                    this.startGeneration();
+                }
+            });
         }
     }
 
@@ -269,12 +299,45 @@ export class CharacterGenDemo extends BaseScriptComponent {
                 modelParent.getTransform().setWorldPosition(new vec3(0, 0, -100));
             }
 
+            // Resolve material: use @input if provided, otherwise search scene
+            let material = this.defaultMaterial;
+            if (!material) {
+                print('[CharacterGenDemo] No defaultMaterial set, searching scene...');
+                try {
+                    // @ts-ignore - Lens Studio global.scene API
+                    const rootCount = global.scene.getRootObjectsCount();
+                    for (let r = 0; r < rootCount && !material; r++) {
+                        // @ts-ignore
+                        const root = global.scene.getRootObject(r);
+                        const rmvs = root.getComponentsRecursive('Component.RenderMeshVisual') as any[];
+                        for (let i = 0; i < rmvs.length && !material; i++) {
+                            if (rmvs[i] && rmvs[i].getMaterial) {
+                                const m = rmvs[i].getMaterial(0);
+                                if (m) {
+                                    material = m;
+                                    print('[CharacterGenDemo] Found fallback material from scene');
+                                }
+                            }
+                        }
+                    }
+                } catch (e: any) {
+                    print('[CharacterGenDemo] Material search failed: ' + (e.message || e));
+                }
+            }
+
+            if (!material) {
+                this.setStatus('Error: No material');
+                print('[CharacterGenDemo] ERROR: No material for GLB. Assign one to defaultMaterial.');
+                this.isGenerating = false;
+                return;
+            }
+
             // Download and instantiate the GLB model
             this.setStatus('Loading 3D model...');
             const sceneObj = await httpClient.downloadAndInstantiateGlb(
                 modelUrl,
                 modelParent,
-                this.defaultMaterial,
+                material,
                 (progress: number) => {
                     this.setStatus(`Loading model (${Math.round(progress * 100)}%)...`);
                 }
