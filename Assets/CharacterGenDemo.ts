@@ -71,13 +71,33 @@ export class CharacterGenDemo extends BaseScriptComponent {
     // ==================== Lifecycle ====================
 
     onAwake() {
-        print('[CharacterGenDemo] Initializing...');
+        print('[CharacterGenDemo] ===== INITIALIZING =====');
+        print('[CharacterGenDemo] Server: ' + SERVER_URL);
+        print('[CharacterGenDemo] API Key: ' + (API_KEY === 'YOUR_API_KEY_HERE' ? 'NOT SET (replace YOUR_API_KEY_HERE!)' : API_KEY.substring(0, 8) + '...'));
+        print('[CharacterGenDemo] Player ID: ' + PLAYER_ID);
+
+        // Log input state
+        print('[CharacterGenDemo] Inputs:');
+        print('[CharacterGenDemo]   paperSanTexture: ' + (this.paperSanTexture ? 'SET' : 'MISSING'));
+        print('[CharacterGenDemo]   defaultMaterial: ' + (this.defaultMaterial ? 'SET' : 'not set (will auto-discover)'));
+        print('[CharacterGenDemo]   statusTextObject: ' + (this.statusTextObject ? 'SET' : 'not set (will auto-create)'));
+        print('[CharacterGenDemo]   generateButtonObject: ' + (this.generateButtonObject ? 'SET' : 'not set (will auto-start)'));
+
+        if (!this.paperSanTexture) {
+            print('[CharacterGenDemo] FATAL: paperSanTexture is not assigned! Drag Paper-San.png to the input.');
+            return;
+        }
 
         // Set up InternetModule via require() (needed for GLB download)
-        // @ts-ignore - Lens Studio module system
-        const internetModule = require('LensStudio:InternetModule') as InternetModule;
-        setInternetModule(internetModule);
-        print('[CharacterGenDemo] InternetModule configured via require()');
+        try {
+            // @ts-ignore - Lens Studio module system
+            const internetModule = require('LensStudio:InternetModule') as InternetModule;
+            setInternetModule(internetModule);
+            print('[CharacterGenDemo] InternetModule configured via require()');
+        } catch (e: any) {
+            print('[CharacterGenDemo] FATAL: Could not load InternetModule: ' + (e.message || e));
+            return;
+        }
 
         // Set up status text display
         if (this.statusTextObject) {
@@ -195,22 +215,33 @@ export class CharacterGenDemo extends BaseScriptComponent {
         }
 
         this.isGenerating = true;
+        // @ts-ignore - Lens Studio getTime global
+        const pipelineStart = getTime();
+        print('[CharacterGenDemo] ===== PIPELINE START =====');
 
         try {
             // Step 1: Encode Paper-San texture to base64
-            this.setStatus('Uploading image...');
+            print('[CharacterGenDemo] [1/5] Encoding texture to base64...');
+            this.setStatus('Encoding image...');
+            // @ts-ignore
+            const encodeStart = getTime();
             const imageBase64Raw = await this.encodeTexture(this.paperSanTexture);
+            // @ts-ignore
+            print(`[CharacterGenDemo] [1/5] Encode complete (${((getTime() - encodeStart) * 1000).toFixed(0)}ms)`);
 
             // Strip data URI prefix if present (pitfall from research)
             let imageBase64 = imageBase64Raw;
             const prefixIndex = imageBase64.indexOf(',');
             if (prefixIndex !== -1 && prefixIndex < 100) {
+                print('[CharacterGenDemo] [1/5] Stripped data URI prefix: "' + imageBase64Raw.substring(0, Math.min(prefixIndex, 60)) + '"');
                 imageBase64 = imageBase64.substring(prefixIndex + 1);
             }
 
-            print(`[CharacterGenDemo] Texture encoded: ${Math.round(imageBase64.length / 1024)}KB base64`);
+            print(`[CharacterGenDemo] [1/5] Base64 payload: ${Math.round(imageBase64.length / 1024)}KB (${imageBase64.length} chars)`);
 
             // Step 2: Create HTTP client
+            print('[CharacterGenDemo] [2/5] Creating HTTP client...');
+            print('[CharacterGenDemo] [2/5] Config: serverUrl=' + SERVER_URL + ', playerId=' + PLAYER_ID);
             const config: EstuaryConfig = {
                 serverUrl: SERVER_URL,
                 apiKey: API_KEY,
@@ -219,41 +250,72 @@ export class CharacterGenDemo extends BaseScriptComponent {
                 debugLogging: true,
             };
             const httpClient = new EstuaryHttpClient(config);
+            print('[CharacterGenDemo] [2/5] HTTP client ready');
 
             // Step 3: Upload image and create character
+            print('[CharacterGenDemo] [3/5] Uploading image to create character...');
             this.setStatus('Creating character...');
+            // @ts-ignore
+            const uploadStart = getTime();
             const agent = await httpClient.uploadImageToCharacter(imageBase64, 'image/png');
+            // @ts-ignore
+            print(`[CharacterGenDemo] [3/5] Character created in ${((getTime() - uploadStart) * 1000).toFixed(0)}ms`);
+            print(`[CharacterGenDemo] [3/5] Agent ID: ${agent.id}`);
+            print(`[CharacterGenDemo] [3/5] Name: "${agent.name}"`);
+            print(`[CharacterGenDemo] [3/5] Tagline: "${agent.tagline || 'none'}"`);
             this.setStatus(`Character "${agent.name}" created!`);
-            print(`[CharacterGenDemo] Character created: ${agent.id} "${agent.name}"`);
 
             // Step 4: Trigger model generation
+            print('[CharacterGenDemo] [4/5] Triggering 3D model generation...');
             this.setStatus('Starting 3D model generation...');
-            await httpClient.generateModel(agent.id);
-            print('[CharacterGenDemo] Model generation triggered');
+            // @ts-ignore
+            const genStart = getTime();
+            const genResult = await httpClient.generateModel(agent.id);
+            // @ts-ignore
+            print(`[CharacterGenDemo] [4/5] Generation triggered in ${((getTime() - genStart) * 1000).toFixed(0)}ms`);
+            print(`[CharacterGenDemo] [4/5] Initial status: ${genResult.modelStatus}`);
 
             // Step 5: Poll for model completion (callback-based)
+            print('[CharacterGenDemo] [5/5] Starting status polling (2s initial, 10s max, 5min timeout)...');
             this.setStatus('Generating model (0%)...');
+            // @ts-ignore
+            const pollStart = getTime();
             httpClient.pollModelStatus(
                 agent.id,
                 (status: ModelStatusResponse) => {
                     // onStatusChanged
+                    // @ts-ignore
+                    const elapsed = ((getTime() - pollStart)).toFixed(1);
                     this.setStatus(`Generating model (${status.progress}%)...`);
-                    print(`[CharacterGenDemo] Model status: ${status.modelStatus} ${status.progress}%`);
+                    print(`[CharacterGenDemo] [5/5] Poll update [${elapsed}s]: status=${status.modelStatus}, progress=${status.progress}%`);
+                    if (status.modelUrl) print(`[CharacterGenDemo] [5/5]   modelUrl: ${status.modelUrl.substring(0, 80)}`);
+                    if (status.modelPreviewUrl) print(`[CharacterGenDemo] [5/5]   previewUrl: ${status.modelPreviewUrl.substring(0, 80)}`);
+                    if (status.thumbnailUrl) print(`[CharacterGenDemo] [5/5]   thumbnailUrl: ${status.thumbnailUrl.substring(0, 80)}`);
                 },
                 (status: ModelStatusResponse) => {
-                    // onCompleted - trigger GLB download
+                    // onCompleted
+                    // @ts-ignore
+                    const elapsed = ((getTime() - pollStart)).toFixed(1);
+                    print(`[CharacterGenDemo] [5/5] Model COMPLETE after ${elapsed}s`);
+                    print(`[CharacterGenDemo] [5/5] Final status: ${status.modelStatus}`);
+                    print(`[CharacterGenDemo] [5/5] modelUrl: ${status.modelUrl || 'null'}`);
+                    print(`[CharacterGenDemo] [5/5] previewUrl: ${status.modelPreviewUrl || 'null'}`);
                     this.setStatus('Downloading 3D model...');
-                    this.downloadAndDisplayModel(httpClient, status);
+                    this.downloadAndDisplayModel(httpClient, status, pipelineStart);
                 },
                 (error: string) => {
-                    // onError
-                    print(`[CharacterGenDemo] ERROR: ${error}`);
+                    // @ts-ignore
+                    const elapsed = ((getTime() - pollStart)).toFixed(1);
+                    print(`[CharacterGenDemo] [5/5] Poll FAILED after ${elapsed}s: ${error}`);
                     this.setStatus('Failed - tap to retry');
                     this.isGenerating = false;
                 }
             );
         } catch (error: any) {
-            print('[CharacterGenDemo] ERROR: ' + (error.message || String(error)));
+            const errMsg = error.message || String(error);
+            print('[CharacterGenDemo] ===== PIPELINE ERROR =====');
+            print('[CharacterGenDemo] ' + errMsg);
+            if (error.stack) print('[CharacterGenDemo] Stack: ' + error.stack);
             this.setStatus('Failed - tap to retry');
             this.isGenerating = false;
         }
@@ -267,55 +329,65 @@ export class CharacterGenDemo extends BaseScriptComponent {
      */
     private async downloadAndDisplayModel(
         httpClient: EstuaryHttpClient,
-        status: ModelStatusResponse
+        status: ModelStatusResponse,
+        pipelineStart: number
     ): Promise<void> {
         try {
+            print('[CharacterGenDemo] ===== GLB DOWNLOAD & DISPLAY =====');
+
             // Determine URL: prefer modelUrl, fall back to modelPreviewUrl (for texture_failed)
             const modelUrl = status.modelUrl || status.modelPreviewUrl;
             if (!modelUrl) {
                 this.setStatus('Error: No model URL');
                 print('[CharacterGenDemo] ERROR: No model URL in completed status');
+                print('[CharacterGenDemo] Full status: modelStatus=' + status.modelStatus + ', modelUrl=' + status.modelUrl + ', previewUrl=' + status.modelPreviewUrl);
                 this.isGenerating = false;
                 return;
             }
 
-            print(`[CharacterGenDemo] Downloading model from: ${modelUrl.substring(0, 100)}`);
+            print('[CharacterGenDemo] GLB URL: ' + modelUrl);
+            print('[CharacterGenDemo] Using ' + (status.modelUrl ? 'final model' : 'preview model (texture_failed fallback)'));
 
             // Create a parent SceneObject for the model
             // @ts-ignore - Lens Studio global.scene API
             const modelParent = global.scene.createSceneObject('GeneratedCharacter');
+            print('[CharacterGenDemo] Created parent SceneObject: GeneratedCharacter');
 
             // Position ~100cm in front of the camera
             try {
                 const camTransform = this.getSceneObject().getTransform();
                 const camPos = camTransform.getWorldPosition();
                 const forward = camTransform.forward;
-                // Place 100cm in front (forward is -Z for camera in Lens Studio)
                 const modelPos = camPos.add(forward.uniformScale(-100));
                 modelParent.getTransform().setWorldPosition(modelPos);
+                print(`[CharacterGenDemo] Positioned at (${modelPos.x.toFixed(1)}, ${modelPos.y.toFixed(1)}, ${modelPos.z.toFixed(1)})`);
             } catch (posError: any) {
-                // Fallback: place at fixed world position 100cm in front of origin
-                print('[CharacterGenDemo] Could not use camera transform, using fallback position');
+                print('[CharacterGenDemo] Camera transform failed: ' + (posError.message || posError));
+                print('[CharacterGenDemo] Using fallback position (0, 0, -100)');
                 modelParent.getTransform().setWorldPosition(new vec3(0, 0, -100));
             }
 
             // Resolve material: use @input if provided, otherwise search scene
             let material = this.defaultMaterial;
-            if (!material) {
-                print('[CharacterGenDemo] No defaultMaterial set, searching scene...');
+            if (material) {
+                print('[CharacterGenDemo] Using assigned defaultMaterial');
+            } else {
+                print('[CharacterGenDemo] No defaultMaterial set, searching scene for any material...');
                 try {
                     // @ts-ignore - Lens Studio global.scene API
                     const rootCount = global.scene.getRootObjectsCount();
+                    print('[CharacterGenDemo] Searching ' + rootCount + ' root objects...');
                     for (let r = 0; r < rootCount && !material; r++) {
                         // @ts-ignore
                         const root = global.scene.getRootObject(r);
                         const rmvs = root.getComponentsRecursive('Component.RenderMeshVisual') as any[];
+                        print('[CharacterGenDemo]   Root ' + r + ' "' + root.name + '": ' + rmvs.length + ' RenderMeshVisuals');
                         for (let i = 0; i < rmvs.length && !material; i++) {
                             if (rmvs[i] && rmvs[i].getMaterial) {
                                 const m = rmvs[i].getMaterial(0);
                                 if (m) {
                                     material = m;
-                                    print('[CharacterGenDemo] Found fallback material from scene');
+                                    print('[CharacterGenDemo] Found fallback material from "' + root.name + '" RMV[' + i + ']');
                                 }
                             }
                         }
@@ -327,27 +399,42 @@ export class CharacterGenDemo extends BaseScriptComponent {
 
             if (!material) {
                 this.setStatus('Error: No material');
-                print('[CharacterGenDemo] ERROR: No material for GLB. Assign one to defaultMaterial.');
+                print('[CharacterGenDemo] FATAL: No material found anywhere. Assign one to defaultMaterial in Inspector.');
                 this.isGenerating = false;
                 return;
             }
 
             // Download and instantiate the GLB model
+            print('[CharacterGenDemo] Starting GLB download + instantiation...');
             this.setStatus('Loading 3D model...');
+            // @ts-ignore
+            const dlStart = getTime();
             const sceneObj = await httpClient.downloadAndInstantiateGlb(
                 modelUrl,
                 modelParent,
                 material,
                 (progress: number) => {
                     this.setStatus(`Loading model (${Math.round(progress * 100)}%)...`);
+                    print(`[CharacterGenDemo] GLB instantiation progress: ${Math.round(progress * 100)}%`);
                 }
             );
 
+            // @ts-ignore
+            const dlElapsed = ((getTime() - dlStart) * 1000).toFixed(0);
+            // @ts-ignore
+            const totalElapsed = ((getTime() - pipelineStart)).toFixed(1);
+            print('[CharacterGenDemo] ===== PIPELINE COMPLETE =====');
+            print(`[CharacterGenDemo] GLB download+instantiate: ${dlElapsed}ms`);
+            print(`[CharacterGenDemo] Total pipeline time: ${totalElapsed}s`);
+            print(`[CharacterGenDemo] SceneObject: ${sceneObj ? sceneObj.name : 'null'}`);
+
             this.setStatus('Done!');
             this.isGenerating = false;
-            print('[CharacterGenDemo] Model instantiated successfully!');
         } catch (error: any) {
-            print('[CharacterGenDemo] ERROR downloading model: ' + (error.message || String(error)));
+            const errMsg = error.message || String(error);
+            print('[CharacterGenDemo] ===== GLB DOWNLOAD ERROR =====');
+            print('[CharacterGenDemo] ' + errMsg);
+            if (error.stack) print('[CharacterGenDemo] Stack: ' + error.stack);
             this.setStatus('Download failed - tap to retry');
             this.isGenerating = false;
         }
