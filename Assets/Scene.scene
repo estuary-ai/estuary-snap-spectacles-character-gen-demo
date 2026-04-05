@@ -1736,6 +1736,21 @@
     - !<own> f0e33766-c981-4f7a-b17b-a50e70c8b6bc
   Components:
     []
+- !<SceneObject/a1b2c3d4-e5f6-7890-abcd-ef1234567890>
+  PrefabRemaps:
+    []
+  Name: CharacterGenDemo
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> b2c3d4e5-f6a7-8901-bcde-f12345678901
 - !<SceneObject/a4be667c-356e-4cf4-81ef-21e3e55cb1c2>
   PrefabRemaps:
     []
@@ -1858,6 +1873,28 @@
   Components:
     - !<own> ab22849e-ac61-44f6-a05a-705b1b8d329f
     - !<own> 2153b6bf-a479-4099-aade-b47df58fc906
+- !<ScriptComponent/b2c3d4e5-f6a7-8901-bcde-f12345678901>
+  PrefabRemaps:
+    []
+  Name: CharacterGenDemo
+  Enabled: true
+  ScriptAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
+  ScriptInputsDefault:
+    defaultMaterial: true
+    statusTextObject: true
+    generateButtonObject: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      apiKey: est_vMu5c9ioPBoGQT1C3KqgEV1qYnWcGLb9sV9vbXdY3U0
+      paperSanTexture: !<reference.Texture> 98b50277-1c19-4fdd-bd81-7bb03869a283
+      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      statusTextObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      generateButtonObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/b376ea46-bee6-4eac-82cc-1f09a4389f34>
   PrefabRemaps:
     []
@@ -2651,37 +2688,3 @@
     - !<own> 929164ef-2d41-474a-a457-1bf03d6cd9f1
   Components:
     []
-- !<SceneObject/a1b2c3d4-e5f6-7890-abcd-ef1234567890>
-  PrefabRemaps:
-    []
-  Name: CharacterGenDemo
-  Enabled: true
-  Layers: 1
-  LocalTransform: !<TransformEntity>
-    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
-    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
-    HasSegmentScaleCompensation: false
-  Children:
-    []
-  Components:
-    - !<own> b2c3d4e5-f6a7-8901-bcde-f12345678901
-- !<ScriptComponent/b2c3d4e5-f6a7-8901-bcde-f12345678901>
-  PrefabRemaps:
-    []
-  Name: CharacterGenDemo
-  Enabled: true
-  ScriptAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
-  ScriptInputsDefault:
-    {}
-  ScriptTypesDefault:
-    {}
-  ScriptInputs:
-    "":
-      paperSanTexture: !<reference.Texture> 98b50277-1c19-4fdd-bd81-7bb03869a283
-      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
-      statusTextObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
-      generateButtonObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
-  ScriptTypes:
-    "":
-      {}
