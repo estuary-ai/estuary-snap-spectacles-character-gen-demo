@@ -39,6 +39,12 @@ export class PalmAnchor extends BaseScriptComponent {
     /** Whether we have initialized position (to avoid lerping from origin on first frame) */
     private _hasInitialPosition: boolean = false;
 
+    /** Timestamp (seconds) of last "shouldShow=true" frame, used for hide hysteresis */
+    private _lastShowTime: number = 0;
+
+    /** How long to keep gallery visible after hand tracking drops (seconds) */
+    private readonly HIDE_DELAY: number = 1.0;
+
     // ==================== Lifecycle ====================
 
     onAwake(): void {
@@ -53,8 +59,9 @@ export class PalmAnchor extends BaseScriptComponent {
 
         print('[PalmAnchor] Initialized - tracking non-dominant hand');
 
-        // Start hidden until we get a valid palm position
-        this.getSceneObject().enabled = false;
+        // Hide children (gallery content) but keep THIS SceneObject enabled
+        // so the UpdateEvent keeps firing and can detect when hand appears.
+        this.setChildrenEnabled(false);
         this._isVisible = false;
 
         // Bind per-frame update for palm tracking
@@ -63,30 +70,56 @@ export class PalmAnchor extends BaseScriptComponent {
 
     // ==================== Per-Frame Update ====================
 
+    /** Frame counter for throttled debug logging */
+    private _debugCounter: number = 0;
+
     private onUpdate(): void {
+        this._debugCounter++;
+        const shouldLog = false; // Debug off
+
         if (!this.trackedHand) {
+            if (shouldLog) print('[PalmAnchor] No trackedHand reference');
             this.hide();
             return;
         }
 
         // Check if hand is tracked at all
-        if (!this.trackedHand.isTracked()) {
+        const isTracked = this.trackedHand.isTracked();
+        if (!isTracked) {
+            if (shouldLog) print('[PalmAnchor] Hand not tracked');
             this.hide();
             this._hasInitialPosition = false;
             return;
         }
 
-        // Get palm center position
-        const palmCenter = this.trackedHand.getPalmCenter();
-        if (!palmCenter) {
+        // Get wrist position (more stable than getPalmCenter, directly on the arm)
+        let wristPos: vec3 | null = null;
+        try {
+            wristPos = this.trackedHand.wrist.position;
+        } catch (_: any) {}
+
+        if (!wristPos) {
+            if (shouldLog) print('[PalmAnchor] wrist position unavailable');
             this.hide();
             return;
         }
 
-        // Determine visibility: either forceShow is on, or palm must face camera
-        const shouldShow = this.forceShow || this.trackedHand.isFacingCamera();
+        // Always show when hand is tracked (no facing-camera gate — wrist is always accessible)
+        const shouldShow = true;
 
-        if (!shouldShow) {
+        if (shouldLog) {
+            print('[PalmAnchor] tracked=true wrist=(' + wristPos.x.toFixed(1) + ',' + wristPos.y.toFixed(1) + ',' + wristPos.z.toFixed(1) + ')');
+        }
+
+        // @ts-ignore - Lens Studio getTime global
+        const now: number = getTime();
+
+        if (shouldShow) {
+            this._lastShowTime = now;
+        }
+
+        // Hysteresis: keep showing for HIDE_DELAY seconds after hand tracking drops
+        if (!shouldShow && (now - this._lastShowTime > this.HIDE_DELAY)) {
             this.hide();
             return;
         }
@@ -94,21 +127,22 @@ export class PalmAnchor extends BaseScriptComponent {
         // Show the gallery and update position
         this.show();
 
+        // Offset slightly above and in front of the wrist
+        const anchorPos = wristPos.add(new vec3(0, 5, 0));
+
         const transform = this.getSceneObject().getTransform();
 
         if (!this._hasInitialPosition) {
-            // First frame: snap directly to palm position (no lerp from origin)
-            transform.setWorldPosition(palmCenter);
+            transform.setWorldPosition(anchorPos);
             this._hasInitialPosition = true;
         } else {
-            // Subsequent frames: lerp for smooth following
             const currentPos = transform.getWorldPosition();
-            const smoothed = vec3.lerp(currentPos, palmCenter, this.LERP_ALPHA);
+            const smoothed = vec3.lerp(currentPos, anchorPos, this.LERP_ALPHA);
             transform.setWorldPosition(smoothed);
         }
 
         // Orient the gallery to face the camera
-        this.faceCamera(transform, palmCenter);
+        this.faceCamera(transform, anchorPos);
     }
 
     // ==================== Orientation ====================
@@ -146,15 +180,27 @@ export class PalmAnchor extends BaseScriptComponent {
 
     private show(): void {
         if (!this._isVisible) {
-            this.getSceneObject().enabled = true;
+            this.setChildrenEnabled(true);
             this._isVisible = true;
         }
     }
 
     private hide(): void {
         if (this._isVisible) {
-            this.getSceneObject().enabled = false;
+            this.setChildrenEnabled(false);
             this._isVisible = false;
+        }
+    }
+
+    /**
+     * Show/hide all children of this SceneObject without disabling
+     * PalmAnchor itself (which would kill the UpdateEvent).
+     */
+    private setChildrenEnabled(enabled: boolean): void {
+        const obj = this.getSceneObject();
+        const count = obj.getChildrenCount();
+        for (let i = 0; i < count; i++) {
+            obj.getChild(i).enabled = enabled;
         }
     }
 

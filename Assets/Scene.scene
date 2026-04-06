@@ -9,6 +9,7 @@
     - !<own> 7937bc34-51be-4264-b41a-73ec9d51ec9a
     - !<own> 60ce34f5-be22-4d7f-aab8-bb646d044e3d
     - !<own> 2200b935-fb9e-4a83-8f1e-dbe7fe545584
+    - !<own> f56cc926-c445-42f6-876a-6e3f8582a5db
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -486,7 +487,7 @@
   PrefabRemaps:
     []
   Name: Estuary Camera Module
-  Enabled: false
+  Enabled: true
   Layers: 1
   LocalTransform: !<TransformEntity>
     Position: {x: 0.000000, y: 0.000000, z: 0.000000}
@@ -747,6 +748,21 @@
   ScriptTypes:
     "":
       {}
+- !<SceneObject/3630cd26-6066-4c78-9347-bc601b9667eb>
+  PrefabRemaps:
+    []
+  Name: Gallery Container Frame
+  Enabled: false
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 56740242-99f8-415c-952b-61428d2846e7
 - !<SceneObject/38525cab-c9f5-4965-814b-8eb0d8b9ad55>
   PrefabRemaps:
     []
@@ -1122,6 +1138,74 @@
   ScriptTypes:
     "":
       {}
+- !<ScriptComponent/56740242-99f8-415c-952b-61428d2846e7>
+  PrefabRemaps:
+    []
+  Name: ContainerFrame
+  Enabled: true
+  ScriptAsset: !<reference> 94ea82ba-1d42-4617-b71f-c92262f5960b
+  ScriptInputsDefault:
+    autoShowHide: true
+    innerSize: true
+    border: true
+    constantPadding: true
+    allowScaling: true
+    autoScaleContent: true
+    relativeZ: true
+    isContentInteractable: true
+    allowTranslation: true
+    cutOut: true
+    minimumSize: true
+    maximumSize: true
+    useBillboarding: true
+    xOnTranslate: true
+    xAlways: true
+    yOnTranslate: true
+    yAlways: true
+    useSnapping: true
+    itemSnapping: true
+    worldSnapping: true
+    showFollowButton: true
+    useFOVFollow: true
+    isFollowing: true
+    showCloseButton: true
+    _enableInteractionPlane: true
+    _targetingVisual: true
+    isSynced: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      autoShowHide: true
+      innerSize: !<Vec2> {x: 32.000000, y: 32.000000}
+      border: !<float> 4.000000
+      constantPadding: !<Vec2> {x: 0.000000, y: 0.000000}
+      allowScaling: true
+      autoScaleContent: true
+      relativeZ: false
+      isContentInteractable: false
+      allowTranslation: true
+      cutOut: false
+      minimumSize: !<Vec2> {x: 10.000000, y: 10.000000}
+      maximumSize: !<Vec2> {x: 300.000000, y: 300.000000}
+      useBillboarding: false
+      xOnTranslate: false
+      xAlways: false
+      yOnTranslate: false
+      yAlways: false
+      useSnapping: false
+      itemSnapping: false
+      worldSnapping: false
+      showFollowButton: false
+      useFOVFollow: false
+      isFollowing: false
+      showCloseButton: true
+      _enableInteractionPlane: false
+      _targetingVisual: !<float> 1.000000
+      isSynced: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/5a2ca1a2-f292-4079-aebb-f491bb9f5bf5>
   PrefabRemaps:
     []
@@ -1341,7 +1425,7 @@
 - !<SceneObject/60ce34f5-be22-4d7f-aab8-bb646d044e3d>
   PrefabRemaps:
     []
-  Name: Estuary Character
+  Name: Estuary Voice Connection
   Enabled: false
   Layers: 1
   LocalTransform: !<TransformEntity>
@@ -1354,6 +1438,26 @@
     - !<own> f9921554-d918-4320-92f2-7f44b27e88ea
   Components:
     - !<own> baf41cae-c8b2-43e3-9347-b96f9559c0ab
+- !<ScriptComponent/624f6fc1-04cf-4745-8503-9083ad408e93>
+  PrefabRemaps:
+    []
+  Name: CharacterGallery
+  Enabled: true
+  ScriptAsset: !<reference> 5afef35e-199a-412c-a974-6d7282e17844
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      cardPrefab: !<reference.ObjectPrefab> 3dae0781-d80a-446b-ac7f-072a8f3fb111
+      navPrefab: !<reference.ObjectPrefab> c6634e37-b185-4112-aecd-b47a832c89d1
+      togglePrefab: !<reference.ObjectPrefab> 2cc2243d-e17a-42a2-b908-a584df766052
+      voiceConnectionObject: !<reference.SceneObject> 60ce34f5-be22-4d7f-aab8-bb646d044e3d
+      defaultMaterial: !<reference.Material> d2662446-68a7-43f5-bfde-a59b4d4be32c
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/6592fd98-8ae7-43b2-9e0d-b63edeaac767>
   PrefabRemaps:
     []
@@ -1421,13 +1525,12 @@
   Enabled: true
   ScriptAsset: !<reference> b11ddc26-836c-4c6f-92d5-fa7bed2c104e
   ScriptInputsDefault:
-    debugMode: true
     captureResolution: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
     "":
-      debugMode: true
+      debugMode: false
       captureResolution: !<float> 512.000000
   ScriptTypes:
     "":
@@ -1712,6 +1815,7 @@
   Enabled: true
   ScriptAsset: !<reference> 733f6a95-3e4d-4328-8094-851235be6b03
   ScriptInputsDefault:
+    serverUrl: true
     useSnapAccountId: true
     userIdField: true
     debugMode: true
@@ -1719,9 +1823,9 @@
     {}
   ScriptInputs:
     "":
-      apiKey: est_qtmc1Dhp8ngOB5UWDPs5YYVxeIKUIamGbQ1XY5WitY4
+      apiKey: est_w0ELbEf7sLBoOowwwDV38HXN__Xq5oIRiaOYT-JCwY8
       characterId: ""
-      serverUrl: "ws://localhost:4001"
+      serverUrl: "wss://api.estuary-ai.com"
       useSnapAccountId: true
       userIdField: ""
       debugMode: true
@@ -2053,7 +2157,7 @@
   PrefabRemaps:
     []
   Name: CharacterGenDemo
-  Enabled: true
+  Enabled: false
   ScriptAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
   ScriptInputsDefault:
     statusTextObject: true
@@ -2839,6 +2943,21 @@
     []
   Components:
     - !<own> 4d3c2e52-807c-4c3e-96ce-305f2b364250
+- !<SceneObject/f56cc926-c445-42f6-876a-6e3f8582a5db>
+  PrefabRemaps:
+    []
+  Name: Character Gallery
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 3630cd26-6066-4c78-9347-bc601b9667eb
+  Components:
+    - !<own> 624f6fc1-04cf-4745-8503-9083ad408e93
 - !<SceneObject/f7f95fff-c512-4bf3-b03e-47c3440bf5df>
   PrefabRemaps:
     []

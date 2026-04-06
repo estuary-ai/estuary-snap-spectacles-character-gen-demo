@@ -1,193 +1,175 @@
 /**
- * CharacterCard - A plain TypeScript class representing a single card in the gallery grid.
+ * CharacterCard - Wraps an instantiated PinchButton prefab to display a character.
  *
- * NOT a @component. Cards are data-driven instances created by CharacterGallery.
- * Each card has:
- * - A tappable area (ColliderComponent + Interactable from SIK)
- * - A Text3D name label
- * - Async thumbnail loading attempt (graceful fallback to name-only)
- *
- * Cards are immediately interactive upon creation -- thumbnail loading is async
- * and does not block tap interaction.
+ * NOT a @component. Created by CharacterGallery for each card slot.
+ * The prefab provides all visual geometry (SUIK handles rendering).
+ * This class just updates the label text and binds the tap callback.
  */
 
 import { AgentResponse } from '../estuary-lens-studio-sdk/src/Models/AgentResponse';
 
-// Import Interactable for SIK tap interaction
-const Interactable = require('SpectaclesInteractionKit.lspkg/Components/Interaction/Interactable/Interactable');
-
 /**
- * A single character card in the gallery grid.
+ * A single character card backed by an instantiated SUIK PinchButton prefab.
  */
 export class CharacterCard {
 
-    /** The root SceneObject for this card, used for positioning by the grid layout */
+    /** The instantiated prefab root SceneObject */
     public readonly sceneObject: SceneObject;
 
     /** The agent data associated with this card */
     public readonly agent: AgentResponse;
 
-    // ==================== Private State ====================
-
-    /** Text3D component for the character name */
-    private nameLabel: any = null;
-
-    /** Whether thumbnail has been loaded */
-    private thumbnailLoaded: boolean = false;
-
-    // ==================== Constructor ====================
-
-    /**
-     * Create a new character card.
-     * @param parent Parent SceneObject to attach the card to
-     * @param agent Character data from the backend
-     * @param onSelect Callback invoked when the card is tapped
-     */
     constructor(
-        parent: SceneObject,
+        prefabInstance: SceneObject,
         agent: AgentResponse,
         onSelect: (agent: AgentResponse) => void
     ) {
+        this.sceneObject = prefabInstance;
         this.agent = agent;
 
-        // Create the card container SceneObject
-        // @ts-ignore - Lens Studio global.scene API
-        this.sceneObject = global.scene.createSceneObject('Card_' + agent.name);
-        this.sceneObject.setParent(parent);
+        // Update the PinchButton's label text to the character name
+        this.setLabel(agent.name);
 
-        // Set up the collider for SIK interaction
-        this.setupCollider();
+        // Load avatar into the Image component (ImageButton prefab has an Image child)
+        this.loadAvatar(agent);
 
-        // Set up the Interactable component for tap detection
-        this.setupInteractable(onSelect);
-
-        // Create the name label
-        this.setupNameLabel(agent.name);
-
-        // Attempt to load thumbnail asynchronously (non-blocking)
-        this.attemptThumbnailLoad(agent);
-    }
-
-    // ==================== Setup Methods ====================
-
-    /**
-     * Create a BoxCollider on a child SceneObject.
-     * SIK's InteractionManager auto-discovers colliders in the hierarchy.
-     */
-    private setupCollider(): void {
-        // @ts-ignore - Lens Studio global.scene API
-        const colliderObj = global.scene.createSceneObject('CardCollider');
-        colliderObj.setParent(this.sceneObject);
-
-        const collider = colliderObj.createComponent('Physics.ColliderComponent') as ColliderComponent;
-        collider.fitVisual = false;
-
-        // @ts-ignore - Lens Studio Shape API
-        const shape = Shape.createBoxShape();
-        shape.size = new vec3(14, 10, 1); // 14cm wide x 10cm tall x 1cm deep
-        collider.shape = shape;
+        // Bind the tap handler via duck-typing (same pattern as CharacterGenDemo)
+        this.bindTapHandler(onSelect);
     }
 
     /**
-     * Create an Interactable on the card container.
-     * SIK auto-discovers the collider in the hierarchy.
+     * Find and update any Text or Text3D component in the prefab hierarchy.
      */
-    private setupInteractable(onSelect: (agent: AgentResponse) => void): void {
-        try {
-            const interactable = this.sceneObject.createComponent(
-                Interactable.getTypeName()
-            ) as any;
-
-            // targetingMode 3 = Direct + Indirect targeting
-            interactable.targetingMode = 3;
-
-            // Bind tap handler (onTriggerEnd = pinch release = tap)
-            interactable.onTriggerEnd.add(() => {
-                print('[CharacterCard] Card tapped: "' + this.agent.name + '" (' + this.agent.id + ')');
-                onSelect(this.agent);
-            });
-        } catch (e: any) {
-            print('[CharacterCard] WARNING: Failed to create Interactable: ' + (e.message || e));
-            print('[CharacterCard] Card "' + this.agent.name + '" will not be tappable');
+    private setLabel(name: string): void {
+        if (!this.findAndSetText(this.sceneObject, name)) {
+            print('[CharacterCard] WARNING: No text component found in prefab for "' + name + '"');
         }
     }
 
-    /**
-     * Create a Text3D label displaying the character name.
-     * Positioned at the bottom-center of the card.
-     */
-    private setupNameLabel(name: string): void {
-        // @ts-ignore - Lens Studio global.scene API
-        const labelObj = global.scene.createSceneObject('Label_' + name);
-        labelObj.setParent(this.sceneObject);
-        labelObj.getTransform().setLocalPosition(new vec3(0, -3, -0.1));
-
+    private findAndSetText(obj: SceneObject, text: string): boolean {
+        // Check this object for Text or Text3D
         try {
-            const text3d = labelObj.createComponent('Component.Text3D') as any;
-            text3d.text = name;
+            const t = obj.getComponent('Component.Text') as any;
+            if (t) { t.text = text; return true; }
+        } catch (_: any) {}
+        try {
+            const t = obj.getComponent('Component.Text3D') as any;
+            if (t) { t.text = text; return true; }
+        } catch (_: any) {}
 
-            // Style the text for readability at arm's length
-            try {
-                text3d.size = 1.5;                 // Font size in cm
-                text3d.horizontalAlignment = 1;    // Center alignment
-                text3d.verticalAlignment = 1;      // Center
-            } catch (_: any) {
-                // Text3D property names may differ across LS versions
+        // Recurse into children
+        const count = obj.getChildrenCount();
+        for (let i = 0; i < count; i++) {
+            if (this.findAndSetText(obj.getChild(i), text)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Bind tap handler using duck-typing. UIKit buttons (RectangleButton etc.)
+     * expose onTriggerUp/onTriggerDown from Element.ts base class.
+     * SIK PinchButton exposes onButtonPinched.
+     */
+    private bindTapHandler(onSelect: (agent: AgentResponse) => void): void {
+        const scripts = this.sceneObject.getComponents('Component.ScriptComponent') as any[];
+
+        for (let i = 0; i < scripts.length; i++) {
+            const sc = scripts[i] as any;
+
+            // UIKit buttons: onTriggerUp (from Element.ts → BaseButton → RectangleButton)
+            if (sc && sc.onTriggerUp && sc.onTriggerUp.add) {
+                sc.onTriggerUp.add(() => {
+                    print('[CharacterCard] Card tapped: "' + this.agent.name + '"');
+                    onSelect(this.agent);
+                });
+                return;
             }
 
-            this.nameLabel = text3d;
-        } catch (e: any) {
-            print('[CharacterCard] WARNING: Failed to create Text3D for "' + name + '": ' + (e.message || e));
+            // SIK PinchButton: onButtonPinched
+            if (sc && sc.onButtonPinched) {
+                sc.onButtonPinched.add(() => {
+                    print('[CharacterCard] Card pinched: "' + this.agent.name + '"');
+                    onSelect(this.agent);
+                });
+                return;
+            }
         }
+
+        print('[CharacterCard] WARNING: No tap handler found on prefab for "' + this.agent.name + '"');
     }
 
     /**
-     * Attempt to load the character thumbnail asynchronously.
-     * Falls back gracefully to name-only card if loading fails.
-     *
-     * Priority: agent.avatar > agent.sourceImageUrl > skip
+     * Load the character's avatar into the Image component in the prefab.
+     * ImageButton prefab has a child SceneObject "Image" with Component.Image.
      */
-    private attemptThumbnailLoad(agent: AgentResponse): void {
+    private loadAvatar(agent: AgentResponse): void {
         const imageUrl = agent.avatar || agent.sourceImageUrl || null;
         if (!imageUrl) {
-            print('[CharacterCard] No thumbnail URL for "' + agent.name + '" - name-only card');
+            print('[CharacterCard] No avatar URL for "' + agent.name + '"');
+            return;
+        }
+
+        // Find the Image component in the prefab hierarchy
+        const imageComp = this.findImageComponent(this.sceneObject);
+        if (!imageComp) {
+            print('[CharacterCard] No Image component found in prefab for "' + agent.name + '"');
             return;
         }
 
         try {
-            // Require modules inside the method body per Pitfall 6
             // @ts-ignore - Lens Studio module system
             const internetModule = require('LensStudio:InternetModule') as InternetModule;
-            // @ts-ignore - Lens Studio module system
+            // @ts-ignore
             const remoteMediaModule = require('LensStudio:RemoteMediaModule');
 
             const resource = internetModule.makeResourceFromUrl(imageUrl);
             remoteMediaModule.loadResourceAsImageTexture(
                 resource,
                 (texture: Texture) => {
-                    this.thumbnailLoaded = true;
-                    print('[CharacterCard] Thumbnail loaded for "' + agent.name + '"');
-                    // Note: Applying texture to a visual requires a RenderMeshVisual with a mesh.
-                    // Programmatic quad mesh creation is not reliably available in Lens Studio,
-                    // so the texture is loaded but we rely on the name label for display.
-                    // The loaded texture could be applied if a material/mesh input is provided
-                    // in a future enhancement.
+                    print('[CharacterCard] Avatar loaded for "' + agent.name + '"');
+                    try {
+                        // Clone the material so each card has its own texture
+                        // (shared material = last texture wins for all cards)
+                        const mat = imageComp.mainMaterial.clone();
+                        mat.mainPass.baseTex = texture;
+                        imageComp.mainMaterial = mat;
+                    } catch (_: any) {
+                        // Try alternative property names
+                        try {
+                            (imageComp as any).texture = texture;
+                        } catch (_2: any) {
+                            print('[CharacterCard] Could not assign texture to Image for "' + agent.name + '"');
+                        }
+                    }
                 },
                 (error: string) => {
-                    print('[CharacterCard] Thumbnail load failed for "' + agent.name + '": ' + error);
-                    // Graceful degradation: name-only card is already visible
+                    print('[CharacterCard] Avatar load failed for "' + agent.name + '": ' + error);
                 }
             );
         } catch (e: any) {
-            print('[CharacterCard] Thumbnail load error for "' + agent.name + '": ' + (e.message || e));
+            print('[CharacterCard] Avatar load error: ' + (e.message || e));
         }
     }
 
-    // ==================== Public API ====================
+    /**
+     * Recursively find a Component.Image in the SceneObject hierarchy.
+     */
+    private findImageComponent(obj: SceneObject): any {
+        try {
+            const img = obj.getComponent('Component.Image');
+            if (img) return img;
+        } catch (_: any) {}
+
+        const count = obj.getChildrenCount();
+        for (let i = 0; i < count; i++) {
+            const found = this.findImageComponent(obj.getChild(i));
+            if (found) return found;
+        }
+        return null;
+    }
 
     /**
-     * Destroy this card and clean up its SceneObject hierarchy.
-     * Called on page change to remove old cards before creating new ones.
+     * Destroy the card and its prefab instance.
      */
     public destroy(): void {
         try {

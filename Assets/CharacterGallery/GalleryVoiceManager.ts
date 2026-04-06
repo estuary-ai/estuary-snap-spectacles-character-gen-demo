@@ -1,9 +1,8 @@
 /**
  * GalleryVoiceManager - Manages voice connection lifecycle when switching characters.
  *
- * Reuses the proven disable/update-creds/re-enable pattern from CharacterGenDemo.ts.
- * Also handles GLB model spawning with graceful fallback on the known
- * tryInstantiateAsync failure (unresolved Lens Studio bug).
+ * Uses EstuaryVoiceConnection.switchCharacter() for clean disconnect/reconnect
+ * with proper event handler re-binding.
  */
 
 import { EstuaryCredentials } from '../estuary-lens-studio-sdk/src/Components/EstuaryCredentials';
@@ -15,7 +14,7 @@ import { AgentResponse } from '../estuary-lens-studio-sdk/src/Models/AgentRespon
  */
 export class GalleryVoiceManager {
 
-    /** The SceneObject containing the EstuaryVoiceConnection component (toggled to connect/disconnect) */
+    /** The SceneObject containing the EstuaryVoiceConnection component */
     private voiceConnectionObject: SceneObject;
 
     /** Reference to the gallery component for creating events */
@@ -27,78 +26,114 @@ export class GalleryVoiceManager {
     /** Currently spawned GLB model SceneObject (if any) */
     private currentModelObject: SceneObject | null = null;
 
-    // ==================== Constructor ====================
+    /** Cached reference to the EstuaryVoiceConnection script */
+    private voiceScript: any = null;
 
-    /**
-     * @param voiceConnectionObject The disabled EstuaryVoiceConnection SceneObject from the scene
-     * @param galleryComponent The gallery BaseScriptComponent (needed for createEvent)
-     */
     constructor(voiceConnectionObject: SceneObject, galleryComponent: BaseScriptComponent) {
         this.voiceConnectionObject = voiceConnectionObject;
         this.galleryComponent = galleryComponent;
     }
 
-    // ==================== Public API ====================
-
-    /**
-     * Get the currently active agent ID, or null if none.
-     */
     public getCurrentAgentId(): string | null {
         return this.currentAgentId;
     }
 
     /**
-     * Switch to a new character. Updates credentials and reconnects voice.
+     * Find the EstuaryVoiceConnection script on the voice SceneObject.
+     */
+    private getVoiceScript(): any {
+        if (this.voiceScript) return this.voiceScript;
+
+        const scripts = this.voiceConnectionObject.getComponents('Component.ScriptComponent') as any[];
+        for (let i = 0; i < scripts.length; i++) {
+            const sc = scripts[i] as any;
+            if (sc && typeof sc.getCharacter === 'function' && typeof sc.sendMessage === 'function') {
+                this.voiceScript = sc;
+                return sc;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Switch to a new character.
      *
-     * Uses the proven pattern from CharacterGenDemo.ts lines 543-601:
-     * 1. Update EstuaryCredentials.characterId
-     * 2. Disable voiceConnectionObject (triggers disconnect)
-     * 3. Wait 2-3 frames for cleanup
-     * 4. Re-enable voiceConnectionObject (triggers fresh connect)
-     * 5. Poll for connection, then send greeting
-     *
-     * @param agentId The character ID to switch to
-     * @param agentName The character display name (used in greeting message)
+     * Strategy: Since onAwake() only fires once, we can't disable/re-enable.
+     * Instead we:
+     * 1. Get the EstuaryVoiceConnection script
+     * 2. Disconnect its current character (stop mic, close WebSocket)
+     * 3. Update credentials with the new character ID
+     * 4. Enable the voice SceneObject if not already enabled (triggers first onAwake)
+     * 5. If already awake, directly create a new character and connect
      */
     public switchCharacter(agentId: string, agentName: string): void {
         print('[Gallery] Switching voice to "' + agentName + '" (' + agentId + ')');
 
-        // Update credentials with the new character ID
-        const creds = EstuaryCredentials.instance;
-        if (!creds) {
-            print('[Gallery] ERROR: No EstuaryCredentials singleton found');
-            return;
-        }
-        creds.characterId = agentId;
         this.currentAgentId = agentId;
 
-        const wasActive = this.voiceConnectionObject.enabled;
+        const vs = this.getVoiceScript();
 
-        if (wasActive) {
-            // Voice is currently active: disable, wait frames, re-enable
-            this.voiceConnectionObject.enabled = false;
-            print('[Gallery] Voice connection disabled - waiting frames before reconnect');
-
-            // Wait 3 frames using an UpdateEvent counter
-            let frameCount = 0;
-            const waitEvent = this.galleryComponent.createEvent('UpdateEvent');
-            waitEvent.bind(() => {
-                frameCount++;
-                if (frameCount >= 3) {
-                    waitEvent.enabled = false;
-                    this.enableVoiceAndGreet(agentId, agentName);
-                }
-            });
+        if (!this.voiceConnectionObject.enabled) {
+            // First time: update creds and enable (triggers onAwake -> connect)
+            const creds = EstuaryCredentials.instance;
+            if (creds) creds.characterId = agentId;
+            this.voiceConnectionObject.enabled = true;
+            print('[Gallery] First connection — enabled voice SceneObject');
+        } else if (vs && typeof vs.switchCharacter === 'function') {
+            // Already connected: use the SDK's public switchCharacter method
+            // This calls disconnect() + connect() internally, properly re-binding all event handlers
+            vs.switchCharacter(agentId);
+            print('[Gallery] Called switchCharacter on voice connection');
         } else {
-            // Voice was not active: just enable
-            this.enableVoiceAndGreet(agentId, agentName);
+            print('[Gallery] WARNING: Voice script has no switchCharacter method');
         }
+
+        // Poll for connection then greet
+        this.pollAndGreet(agentId, agentName);
     }
 
     /**
-     * Destroy the currently spawned GLB model, if any.
-     * Should be called before switching characters to clean up the scene.
+     * Poll for voice connection establishment, then send greeting.
      */
+    private pollAndGreet(agentId: string, agentName: string): void {
+        const greeting = 'Hello! Introduce yourself as ' + agentName + '!';
+
+        // @ts-ignore
+        const greetStart = getTime();
+        const greetEvent = this.galleryComponent.createEvent('UpdateEvent');
+        greetEvent.bind(() => {
+            // @ts-ignore
+            const elapsed = getTime() - greetStart;
+
+            if (elapsed > 30) {
+                greetEvent.enabled = false;
+                print('[Gallery] Greeting timeout — voice did not connect in 30s');
+                return;
+            }
+
+            const vs = this.getVoiceScript();
+            if (vs) {
+                const character = vs.getCharacter();
+                if (character && character.isConnected) {
+                    greetEvent.enabled = false;
+                    print('[Gallery] Voice connected after ' + elapsed.toFixed(1) + 's — sending greeting');
+                    vs.sendMessage(greeting);
+
+                    // Start voice session + mic
+                    try {
+                        character.startVoiceSession();
+                        vs.setMuted(false);
+                    } catch (_: any) {}
+
+                    return;
+                }
+            }
+
+        });
+    }
+
+    // ==================== Model Management ====================
+
     public destroyCurrentModel(): void {
         if (this.currentModelObject) {
             try {
@@ -111,25 +146,27 @@ export class GalleryVoiceManager {
         }
     }
 
-    /**
-     * Attempt to download and instantiate a GLB model for the selected character.
-     * Gracefully handles the known tryInstantiateAsync failure in Lens Studio.
-     *
-     * @param httpClient The HTTP client for downloading GLBs
-     * @param agent The character whose model to spawn
-     * @param parentSceneObject Where to parent the spawned model
-     * @param material Material required by downloadAndInstantiateGlb (null skips the attempt)
-     */
     public async attemptGlbSpawn(
         httpClient: EstuaryHttpClient,
         agent: AgentResponse,
         parentSceneObject: SceneObject,
         material: Material | null
     ): Promise<void> {
-        const modelUrl = agent.modelUrl || agent.modelPreviewUrl;
+        let modelUrl = agent.modelUrl || agent.modelPreviewUrl;
         if (!modelUrl) {
             print('[Gallery] No model URL for "' + agent.name + '" - voice-only experience');
             return;
+        }
+
+        // Rewrite localhost URLs to use the actual server URL from credentials
+        const creds = EstuaryCredentials.instance;
+        if (creds && modelUrl.includes('localhost')) {
+            let serverBase = creds.serverUrl || '';
+            if (serverBase.startsWith('wss://')) serverBase = 'https://' + serverBase.substring(6);
+            else if (serverBase.startsWith('ws://')) serverBase = 'http://' + serverBase.substring(5);
+            serverBase = serverBase.replace(/\/$/, '');
+            modelUrl = modelUrl.replace(/https?:\/\/localhost(:\d+)?/, serverBase);
+            print('[Gallery] Rewrote model URL to: ' + modelUrl);
         }
 
         if (!material) {
@@ -150,55 +187,8 @@ export class GalleryVoiceManager {
             this.currentModelObject = sceneObj;
             print('[Gallery] GLB model spawned for "' + agent.name + '"');
         } catch (e: any) {
-            // Known Lens Studio bug: tryInstantiateAsync fails with
-            // "glTF asset does not contain a root SceneObject" on ALL GLBs.
-            // This is documented in project MEMORY.md as UNRESOLVED.
             print('[Gallery] GLB instantiation failed (known LS bug) - voice-only mode');
             print('[Gallery] Error: ' + (e.message || e));
         }
-    }
-
-    // ==================== Private Helpers ====================
-
-    /**
-     * Enable the voice connection and send a greeting after it establishes.
-     * Polls for connection readiness with a 30-second timeout.
-     */
-    private enableVoiceAndGreet(agentId: string, agentName: string): void {
-        this.voiceConnectionObject.enabled = true;
-        print('[Gallery] Voice connection enabled for "' + agentName + '"');
-
-        const greeting = 'Hello! I\'m ready to chat. Introduce yourself as ' + agentName + '!';
-
-        // Poll for the voice connection to establish (same pattern as CharacterGenDemo)
-        // @ts-ignore - Lens Studio getTime global
-        const greetStart = getTime();
-        const greetEvent = this.galleryComponent.createEvent('UpdateEvent');
-        greetEvent.bind(() => {
-            // @ts-ignore
-            const elapsed = getTime() - greetStart;
-
-            // Timeout after 30 seconds
-            if (elapsed > 30) {
-                greetEvent.enabled = false;
-                print('[Gallery] Greeting timeout - voice connection did not establish in 30s');
-                return;
-            }
-
-            // Find EstuaryVoiceConnection script and check if connected
-            const scripts = this.voiceConnectionObject.getComponents('Component.ScriptComponent') as any[];
-            for (let i = 0; i < scripts.length; i++) {
-                const sc = scripts[i] as any;
-                if (sc && typeof sc.sendMessage === 'function' && typeof sc.getCharacter === 'function') {
-                    const character = sc.getCharacter();
-                    if (character && character.isConnected) {
-                        greetEvent.enabled = false;
-                        print('[Gallery] Voice connected after ' + elapsed.toFixed(1) + 's - sending greeting');
-                        sc.sendMessage(greeting);
-                        return;
-                    }
-                }
-            }
-        });
     }
 }

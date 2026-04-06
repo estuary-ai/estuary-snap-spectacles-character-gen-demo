@@ -22,11 +22,15 @@
   VersionMajor: 0
   VersionMinor: 0
   VersionPatch: 0
-  ComponentUid: 00000000-0000-0000-0000-000000000000
+  ComponentUid: b9980847-ddbf-414b-a257-97e58291b301
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
-    {}
+    cardPrefab: false
+    defaultMaterial: false
+    navPrefab: false
+    togglePrefab: false
+    voiceConnectionObject: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -36,10 +40,17 @@
   Attachments:
     []
   DefaultScriptInputs:
-    -
-      {}
+    - cardPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      navPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      togglePrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      voiceConnectionObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
   ScriptTypes:
     -
       {}
   InputLines:
-    []
+    - // @input Asset.ObjectPrefab cardPrefab
+    - // @input Asset.ObjectPrefab navPrefab
+    - // @input Asset.ObjectPrefab togglePrefab
+    - // @input SceneObject voiceConnectionObject
+    - // @input Asset.Material defaultMaterial
