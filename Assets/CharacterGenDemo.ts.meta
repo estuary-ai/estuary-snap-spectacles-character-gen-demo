@@ -1,0 +1,62 @@
+- !<AssetImportMetadata/8cc6e7ff-d061-4749-9a4e-17414598b1fc>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 9fd5e7a3-d486-4623-8074-3e9c8bae5126
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/9fd5e7a3-d486-4623-8074-3e9c8bae5126>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 789ffc37-8d3b-4dc6-9dc7-f9bb5ee47db9
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    defaultMaterial: false
+    existingCharacterId: false
+    generateButtonObject: false
+    greetingMessage: false
+    paperSanTexture: false
+    statusTextObject: false
+    voiceConnectionObject: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - paperSanTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
+      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      statusTextObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      generateButtonObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      voiceConnectionObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      greetingMessage: ""
+      existingCharacterId: ""
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Asset.Texture paperSanTexture
+    - // @input Asset.Material defaultMaterial
+    - // @input SceneObject statusTextObject
+    - // @input SceneObject generateButtonObject
+    - // @input SceneObject voiceConnectionObject
+    - // @input string greetingMessage
+    - // @input string existingCharacterId

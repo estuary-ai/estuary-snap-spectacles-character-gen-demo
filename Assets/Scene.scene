@@ -5,6 +5,10 @@
     - !<own> 0005641c-028d-459a-0000-000000014b4d
     - !<own> 5aa0f98b-e799-448c-a2dc-cae5d04fa2a4
     - !<own> a1b2c3d4-e5f6-7890-abcd-ef1234567890
+    - !<own> 007a7f75-413d-4e1a-a4e1-88a30479f5f0
+    - !<own> 7937bc34-51be-4264-b41a-73ec9d51ec9a
+    - !<own> 60ce34f5-be22-4d7f-aab8-bb646d044e3d
+    - !<own> 2200b935-fb9e-4a83-8f1e-dbe7fe545584
   layers: !<Layers/267ee9a7-aff2-4f9d-9a49-f71214747d03>
     userLayers:
       []
@@ -172,6 +176,21 @@
   DecayType: None
   DecayLimit: false
   DecayRange: 40.000000
+- !<SceneObject/007a7f75-413d-4e1a-a4e1-88a30479f5f0>
+  PrefabRemaps:
+    []
+  Name: GlbLoadTest
+  Enabled: false
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> ffd1c5ac-ffb2-45eb-9185-1e179696bd5e
 - !<SceneObject/00fdb93a-85d7-4497-9622-9fad02238fc3>
   PrefabRemaps:
     []
@@ -427,6 +446,25 @@
     - !<own> d491b31f-c593-49a0-932a-b8bbe817b1bf
   Components:
     []
+- !<ScriptComponent/20fdfa83-3e05-469b-b193-903f7278f4a4>
+  PrefabRemaps:
+    []
+  Name: DynamicAudioOutput
+  Enabled: true
+  ScriptAsset: !<reference> 3bfdf77c-f23d-412c-aecc-d6e31ef576e9
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      audioOutputTrack: !<reference.AudioTrackAsset> fa586d9a-2814-452a-87f2-6dc3af28314e
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<ScriptComponent/2153b6bf-a479-4099-aade-b47df58fc906>
   PrefabRemaps:
     []
@@ -444,6 +482,53 @@
   ScriptTypes:
     "":
       {}
+- !<SceneObject/2200b935-fb9e-4a83-8f1e-dbe7fe545584>
+  PrefabRemaps:
+    []
+  Name: Estuary Camera Module
+  Enabled: false
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 6c47f3cc-8e24-4986-b158-09962ca38e5b
+- !<AudioComponent/2227859f-5761-4c43-b9a2-3fbc9269d86d>
+  PrefabRemaps:
+    []
+  Name: Audio
+  Enabled: true
+  AudioTrack: !<reference> fa586d9a-2814-452a-87f2-6dc3af28314e
+  EnableAutoplayLoop: false
+  Volume: 1.000000
+  EnableMixToSnap: false
+  RecordVolume: 1.000000
+  EnableSpatialAudio: false
+  EnableDistanceEffect: false
+  CurveType: Logarithm
+  MinDistance: 0.000000
+  MaxDistance: 100.000000
+  EnableDirectivityEffect: false
+  EnablePositionEffect: false
+- !<SceneObject/23bb999b-d65a-4485-9445-c9e9ad9eebab>
+  PrefabRemaps:
+    []
+  Name: Estuary Audio Input
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> ad5d0f3c-466f-45e4-911e-fe0b023ec79e
 - !<SceneObject/25a5160c-dd09-4e72-9e5d-156e2f82f869>
   PrefabRemaps:
     []
@@ -1253,6 +1338,22 @@
   BlendNormals: false
   BlendShapes:
     {}
+- !<SceneObject/60ce34f5-be22-4d7f-aab8-bb646d044e3d>
+  PrefabRemaps:
+    []
+  Name: Estuary Character
+  Enabled: false
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    - !<own> 23bb999b-d65a-4485-9445-c9e9ad9eebab
+    - !<own> f9921554-d918-4320-92f2-7f44b27e88ea
+  Components:
+    - !<own> baf41cae-c8b2-43e3-9347-b96f9559c0ab
 - !<SceneObject/6592fd98-8ae7-43b2-9e0d-b63edeaac767>
   PrefabRemaps:
     []
@@ -1313,6 +1414,24 @@
     - !<own> fc530e67-51dc-4b55-8306-a92acdd025f6
   Components:
     []
+- !<ScriptComponent/6c47f3cc-8e24-4986-b158-09962ca38e5b>
+  PrefabRemaps:
+    []
+  Name: EstuaryCamera
+  Enabled: true
+  ScriptAsset: !<reference> b11ddc26-836c-4c6f-92d5-fa7bed2c104e
+  ScriptInputsDefault:
+    debugMode: true
+    captureResolution: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      debugMode: true
+      captureResolution: !<float> 512.000000
+  ScriptTypes:
+    "":
+      {}
 - !<RenderMeshVisual/6cac85a8-f502-4056-881b-db428723681c>
   PrefabRemaps:
     []
@@ -1432,6 +1551,21 @@
     - !<own> e0c838a2-fdd6-406e-8404-1fc871cbdb6e
   Components:
     []
+- !<SceneObject/7937bc34-51be-4264-b41a-73ec9d51ec9a>
+  PrefabRemaps:
+    []
+  Name: Estuary Credentials
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 85b4dd19-fee8-4782-a95f-5095b3194b82
 - !<SceneObject/7b9d067f-414a-4620-a6b1-b0824953478c>
   PrefabRemaps:
     []
@@ -1571,6 +1705,29 @@
     - !<own> cca13a50-a590-4864-94ca-c7b3aa5951ed
   Components:
     []
+- !<ScriptComponent/85b4dd19-fee8-4782-a95f-5095b3194b82>
+  PrefabRemaps:
+    []
+  Name: EstuaryCredentials
+  Enabled: true
+  ScriptAsset: !<reference> 733f6a95-3e4d-4328-8094-851235be6b03
+  ScriptInputsDefault:
+    useSnapAccountId: true
+    userIdField: true
+    debugMode: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      apiKey: est_qtmc1Dhp8ngOB5UWDPs5YYVxeIKUIamGbQ1XY5WitY4
+      characterId: ""
+      serverUrl: "ws://localhost:4001"
+      useSnapAccountId: true
+      userIdField: ""
+      debugMode: true
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/85b990fe-4a77-4e85-b87e-28981b812dd8>
   PrefabRemaps:
     []
@@ -1827,6 +1984,25 @@
     - !<own> 10568179-3897-4527-83b6-b6018cff9f28
   Components:
     []
+- !<ScriptComponent/ad5d0f3c-466f-45e4-911e-fe0b023ec79e>
+  PrefabRemaps:
+    []
+  Name: MicrophoneRecorder
+  Enabled: true
+  ScriptAsset: !<reference> bc168e67-17cb-4051-b86a-1d8ed4094e8f
+  ScriptInputsDefault:
+    enableLogging: true
+    enableLoggingLifecycle: true
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      micAudioTrack: !<reference.AudioTrackAsset> 5661299d-e1f4-4f06-a343-8b22eca58e06
+      enableLogging: false
+      enableLoggingLifecycle: false
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/adc75353-1cbe-476e-a85f-d1f14ed9eeed>
   PrefabRemaps:
     []
@@ -1880,18 +2056,19 @@
   Enabled: true
   ScriptAsset: !<reference> 95ba42a8-9387-466d-bde5-6489f5dbab6f
   ScriptInputsDefault:
-    defaultMaterial: true
     statusTextObject: true
     generateButtonObject: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
     "":
-      apiKey: est_vMu5c9ioPBoGQT1C3KqgEV1qYnWcGLb9sV9vbXdY3U0
       paperSanTexture: !<reference.Texture> 98b50277-1c19-4fdd-bd81-7bb03869a283
-      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      defaultMaterial: !<reference.Material> d2662446-68a7-43f5-bfde-a59b4d4be32c
       statusTextObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       generateButtonObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      voiceConnectionObject: !<reference.SceneObject> 60ce34f5-be22-4d7f-aab8-bb646d044e3d
+      greetingMessage: Hey tell me about yourself!
+      existingCharacterId: bf1cd261-b9eb-4fc8-b45e-d1925508f043
   ScriptTypes:
     "":
       {}
@@ -2054,6 +2231,25 @@
     - !<own> ed7074f4-802d-4336-9588-237c5c48f33e
   Components:
     []
+- !<ScriptComponent/baf41cae-c8b2-43e3-9347-b96f9559c0ab>
+  PrefabRemaps:
+    []
+  Name: EstuaryVoiceConnection
+  Enabled: true
+  ScriptAsset: !<reference> 234be11f-4c48-40f6-b10c-ccd2f554af03
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      credentialsObject: !<reference.SceneObject> 7937bc34-51be-4264-b41a-73ec9d51ec9a
+      microphoneRecorderObject: !<reference.SceneObject> 23bb999b-d65a-4485-9445-c9e9ad9eebab
+      dynamicAudioOutputObject: !<reference.SceneObject> f9921554-d918-4320-92f2-7f44b27e88ea
+      internetModule: !<reference.InternetModule> 81ada6be-c557-409b-a4d0-1435b5342a5c
+  ScriptTypes:
+    "":
+      {}
 - !<SceneObject/c1e4cdd6-40ff-4bbf-94e2-490af58b9b1d>
   PrefabRemaps:
     []
@@ -2658,6 +2854,22 @@
     - !<own> 6dc5dd7a-4726-4cb6-b42f-a12f4b6416c3
   Components:
     []
+- !<SceneObject/f9921554-d918-4320-92f2-7f44b27e88ea>
+  PrefabRemaps:
+    []
+  Name: Estuary Audio Output
+  Enabled: true
+  Layers: 1
+  LocalTransform: !<TransformEntity>
+    Position: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Rotation: {x: 0.000000, y: 0.000000, z: 0.000000}
+    Scale: {x: 1.000000, y: 1.000000, z: 1.000000}
+    HasSegmentScaleCompensation: false
+  Children:
+    []
+  Components:
+    - !<own> 2227859f-5761-4c43-b9a2-3fbc9269d86d
+    - !<own> 20fdfa83-3e05-469b-b193-903f7278f4a4
 - !<SceneObject/fc530e67-51dc-4b55-8306-a92acdd025f6>
   PrefabRemaps:
     []
@@ -2688,3 +2900,21 @@
     - !<own> 929164ef-2d41-474a-a457-1bf03d6cd9f1
   Components:
     []
+- !<ScriptComponent/ffd1c5ac-ffb2-45eb-9185-1e179696bd5e>
+  PrefabRemaps:
+    []
+  Name: GlbLoadTest
+  Enabled: true
+  ScriptAsset: !<reference> 0568e9e1-45da-4da5-bef1-e1cb6cf0ffe5
+  ScriptInputsDefault:
+    {}
+  ScriptTypesDefault:
+    {}
+  ScriptInputs:
+    "":
+      material: !<reference.Material> d2662446-68a7-43f5-bfde-a59b4d4be32c
+      cameraObject: !<reference.SceneObject> 00000000-0000-0065-0000-000000000064
+      glbUrl: "https://29cb-2600-1700-2f71-8080-753e-64a8-615a-ea86.ngrok-free.app/static/agent_models/807eaf3a-1a0a-4581-aaa4-72ba9a1a9757.glb"
+  ScriptTypes:
+    "":
+      {}

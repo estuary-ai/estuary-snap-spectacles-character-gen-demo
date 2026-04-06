@@ -1,0 +1,50 @@
+- !<AssetImportMetadata/9f9a3373-5df6-47d3-a11b-84e42b4419d2>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 0568e9e1-45da-4da5-bef1-e1cb6cf0ffe5
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 0568e9e1-45da-4da5-bef1-e1cb6cf0ffe5
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> ff72b68f-3a92-40a1-869a-0c3d2f2a7d33
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/ff72b68f-3a92-40a1-869a-0c3d2f2a7d33>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 605a8633-5067-4f72-a32e-2b63da71aa87
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    cameraObject: false
+    glbUrl: false
+    material: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - material: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      cameraObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      glbUrl: ""
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - // @input Asset.Material material
+    - // @input SceneObject cameraObject
+    - // @input string glbUrl

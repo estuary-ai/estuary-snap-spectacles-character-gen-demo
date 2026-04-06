@@ -4,23 +4,22 @@
  * Demonstrates: image upload -> character creation -> model generation -> GLB display.
  *
  * Setup in Lens Studio:
- * 1. Add this script to a SceneObject in your scene
- * 2. Drag Paper-San.png from Resources to the paperSanTexture input
- * 3. (Optional) Create a Material and drag to defaultMaterial input
- *    - If omitted, a material is auto-discovered from existing scene objects
- * 4. (Optional) Add a PinchButton prefab and drag to generateButtonObject
- *    - If omitted, generation auto-starts after 3 seconds
- * 5. (Optional) Create a SceneObject with Text3D for status display
- *    - If omitted, a Text3D is created at runtime
- * 6. Replace API_KEY constant with your Estuary API key
- * 7. Deploy to Spectacles (network calls don't work in Preview)
+ * 1. Add EstuaryCredentials to a SceneObject (set API key & server URL)
+ * 2. Add this script to a SceneObject
+ * 3. Drag Paper-San.png to paperSanTexture input (for generation mode)
+ * 4. Assign a GLTF material to defaultMaterial (NOT PBR!)
+ * 5. (Optional) Set existingCharacterId to load a character instead of generating
+ * 6. (Optional) Wire voiceConnectionObject to a disabled EstuaryVoiceConnection SceneObject
+ * 7. (Optional) Wire generateButtonObject to a PinchButton (otherwise auto-starts in 3s)
  *
+ * Credentials (API key, server URL, player ID) are read from EstuaryCredentials.
  * InternetModule is obtained automatically via require().
  */
 
 import { setInternetModule } from './estuary-lens-studio-sdk/src/Core/EstuaryClient';
 import { EstuaryHttpClient } from './estuary-lens-studio-sdk/src/Core/EstuaryHttpClient';
 import { EstuaryConfig } from './estuary-lens-studio-sdk/src/Core/EstuaryConfig';
+import { EstuaryCredentials } from './estuary-lens-studio-sdk/src/Components/EstuaryCredentials';
 import { ModelStatusResponse } from './estuary-lens-studio-sdk/src/Models/ModelStatusResponse';
 
 // ==================== Configuration Constants ====================
@@ -41,11 +40,6 @@ export class CharacterGenDemo extends BaseScriptComponent {
 
     // ==================== Inputs (set in Inspector) ====================
 
-    /** Estuary API key — set in Inspector or leave empty to use the constant above */
-    @input
-    @allowUndefined
-    apiKey: string;
-
     /** Paper-San.png texture from Resources panel */
     @input
     paperSanTexture: Texture;
@@ -65,6 +59,22 @@ export class CharacterGenDemo extends BaseScriptComponent {
     @allowUndefined
     generateButtonObject: SceneObject;
 
+    /** SceneObject with EstuaryVoiceConnection script (initially DISABLED in scene).
+     *  After GLB loads, CharacterGenDemo enables this to start voice conversation. */
+    @input
+    @allowUndefined
+    voiceConnectionObject: SceneObject;
+
+    /** Greeting message sent to the character after voice connects. Set empty to skip. */
+    @input
+    @allowUndefined
+    greetingMessage: string;
+
+    /** Existing character ID to load instead of generating new. Skips photo upload + model generation. */
+    @input
+    @allowUndefined
+    existingCharacterId: string;
+
     // ==================== Private State ====================
 
     /** Cached Text3D component from statusTextObject */
@@ -73,27 +83,60 @@ export class CharacterGenDemo extends BaseScriptComponent {
     /** Whether a generation is currently in progress */
     private isGenerating: boolean = false;
 
+    /** Build HTTP client config from EstuaryCredentials */
+    private buildHttpConfig(): EstuaryConfig {
+        const creds = EstuaryCredentials.instance;
+        let serverUrl = creds?.serverUrl || SERVER_URL;
+        // Convert ws:// to http:// for REST calls
+        if (serverUrl.startsWith('wss://')) serverUrl = 'https://' + serverUrl.substring(6);
+        else if (serverUrl.startsWith('ws://')) serverUrl = 'http://' + serverUrl.substring(5);
+
+        return {
+            serverUrl: serverUrl,
+            apiKey: (creds?.apiKey || API_KEY).trim(),
+            characterId: '',
+            playerId: creds?.userId || PLAYER_ID,
+            debugLogging: true,
+        };
+    }
+
     // ==================== Lifecycle ====================
 
     onAwake() {
+        // Defer initialization to let EstuaryCredentials.onAwake() register the singleton first
+        this.createEvent('OnStartEvent').bind(() => this.initialize());
+    }
+
+    private initialize(): void {
         print('[CharacterGenDemo] ===== INITIALIZING =====');
-        print('[CharacterGenDemo] Server: ' + SERVER_URL);
-        // @ts-ignore
-        const apiKeyDisplay = (this.apiKey || API_KEY) as string;
-        print('[CharacterGenDemo] API Key: ' + (apiKeyDisplay === 'YOUR_API_KEY_HERE' ? 'NOT SET (replace YOUR_API_KEY_HERE!)' : apiKeyDisplay.substring(0, 8) + '...'));
-        print('[CharacterGenDemo] Player ID: ' + PLAYER_ID);
+
+        // Pull credentials from EstuaryCredentials singleton
+        const creds = EstuaryCredentials.instance;
+        if (!creds) {
+            print('[CharacterGenDemo] FATAL: No EstuaryCredentials found in scene!');
+            print('[CharacterGenDemo] Add an EstuaryCredentials component to a SceneObject.');
+            return;
+        }
+
+        // Resolve server URL: EstuaryCredentials uses wss://, we need https:// for REST
+        let httpServerUrl = creds.serverUrl || SERVER_URL;
+        if (httpServerUrl.startsWith('wss://')) {
+            httpServerUrl = 'https://' + httpServerUrl.substring(6);
+        } else if (httpServerUrl.startsWith('ws://')) {
+            httpServerUrl = 'http://' + httpServerUrl.substring(5);
+        }
+
+        print('[CharacterGenDemo] Server: ' + httpServerUrl + ' (from EstuaryCredentials)');
+        print('[CharacterGenDemo] API Key: ' + (creds.apiKey ? creds.apiKey.substring(0, 8) + '...' : 'NOT SET'));
+        print('[CharacterGenDemo] Player ID: ' + (creds.userId || PLAYER_ID));
 
         // Log input state
         print('[CharacterGenDemo] Inputs:');
-        print('[CharacterGenDemo]   paperSanTexture: ' + (this.paperSanTexture ? 'SET' : 'MISSING'));
+        print('[CharacterGenDemo]   paperSanTexture: ' + (this.paperSanTexture ? 'SET' : 'not set (needed for generation only)'));
         print('[CharacterGenDemo]   defaultMaterial: ' + (this.defaultMaterial ? 'SET' : 'not set (will auto-discover)'));
         print('[CharacterGenDemo]   statusTextObject: ' + (this.statusTextObject ? 'SET' : 'not set (will auto-create)'));
         print('[CharacterGenDemo]   generateButtonObject: ' + (this.generateButtonObject ? 'SET' : 'not set (will auto-start)'));
-
-        if (!this.paperSanTexture) {
-            print('[CharacterGenDemo] FATAL: paperSanTexture is not assigned! Drag Paper-San.png to the input.');
-            return;
-        }
+        print('[CharacterGenDemo]   existingCharacterId: ' + (this.existingCharacterId || 'not set (will generate new)'));
 
         // Set up InternetModule via require() (needed for GLB download)
         try {
@@ -116,22 +159,15 @@ export class CharacterGenDemo extends BaseScriptComponent {
                 print('[CharacterGenDemo] WARNING: statusTextObject has no Text3D component');
             }
         } else {
-            // Create a Text3D component at runtime
-            print('[CharacterGenDemo] No statusTextObject provided, creating Text3D at runtime');
-            try {
-                // @ts-ignore - Lens Studio global.scene API
-                const textObj = global.scene.createSceneObject('StatusText');
-                textObj.setParent(this.getSceneObject());
-                textObj.getTransform().setLocalPosition(new vec3(0, 10, -50));
-                this.statusText3D = textObj.createComponent('Component.Text3D');
-                if (this.statusText3D) {
-                    this.statusText3D.text = 'Starting...';
-                    this.statusText3D.size = 12;
-                    print('[CharacterGenDemo] Runtime Text3D created');
-                }
-            } catch (e: any) {
-                print('[CharacterGenDemo] Could not create Text3D: ' + (e.message || e));
-            }
+            print('[CharacterGenDemo] No statusTextObject — status will be logged only');
+        }
+
+        // Check for existing character ID — skip generation if set
+        if (this.existingCharacterId) {
+            print('[CharacterGenDemo] existingCharacterId set: ' + this.existingCharacterId);
+            print('[CharacterGenDemo] Skipping generation — loading existing character');
+            this.loadExistingCharacter(this.existingCharacterId);
+            return;
         }
 
         // Discover and bind PinchButton, or auto-start after delay
@@ -246,17 +282,10 @@ export class CharacterGenDemo extends BaseScriptComponent {
 
             print(`[CharacterGenDemo] [1/5] Base64 payload: ${Math.round(imageBase64.length / 1024)}KB (${imageBase64.length} chars)`);
 
-            // Step 2: Create HTTP client
-            const resolvedApiKey = this.apiKey || API_KEY;
+            // Step 2: Create HTTP client from EstuaryCredentials
             print('[CharacterGenDemo] [2/5] Creating HTTP client...');
-            print('[CharacterGenDemo] [2/5] Config: serverUrl=' + SERVER_URL + ', playerId=' + PLAYER_ID + ', apiKey=' + (resolvedApiKey === 'YOUR_API_KEY_HERE' ? 'NOT SET!' : 'set'));
-            const config: EstuaryConfig = {
-                serverUrl: SERVER_URL,
-                apiKey: resolvedApiKey,
-                characterId: '', // not needed for character creation
-                playerId: PLAYER_ID,
-                debugLogging: true,
-            };
+            const config = this.buildHttpConfig();
+            print('[CharacterGenDemo] [2/5] Config: serverUrl=' + config.serverUrl + ', playerId=' + config.playerId + ', apiKey=' + (config.apiKey ? 'set' : 'NOT SET!'));
             const httpClient = new EstuaryHttpClient(config);
             print('[CharacterGenDemo] [2/5] HTTP client ready');
 
@@ -309,7 +338,7 @@ export class CharacterGenDemo extends BaseScriptComponent {
                     print(`[CharacterGenDemo] [5/5] modelUrl: ${status.modelUrl || 'null'}`);
                     print(`[CharacterGenDemo] [5/5] previewUrl: ${status.modelPreviewUrl || 'null'}`);
                     this.setStatus('Downloading 3D model...');
-                    this.downloadAndDisplayModel(httpClient, status, pipelineStart);
+                    this.downloadAndDisplayModel(httpClient, status, pipelineStart, agent.id, agent.name);
                 },
                 (error: string) => {
                     // @ts-ignore
@@ -338,7 +367,9 @@ export class CharacterGenDemo extends BaseScriptComponent {
     private async downloadAndDisplayModel(
         httpClient: EstuaryHttpClient,
         status: ModelStatusResponse,
-        pipelineStart: number
+        pipelineStart: number,
+        agentId: string,
+        agentName: string
     ): Promise<void> {
         try {
             print('[CharacterGenDemo] ===== GLB DOWNLOAD & DISPLAY =====');
@@ -437,8 +468,11 @@ export class CharacterGenDemo extends BaseScriptComponent {
             print(`[CharacterGenDemo] Total pipeline time: ${totalElapsed}s`);
             print(`[CharacterGenDemo] SceneObject: ${sceneObj ? sceneObj.name : 'null'}`);
 
-            this.setStatus('Done!');
+            this.setStatus('Done! Connecting voice...');
             this.isGenerating = false;
+
+            // Start voice conversation with the generated character
+            this.startVoiceConnection(agentId, agentName);
         } catch (error: any) {
             const errMsg = error.message || String(error);
             print('[CharacterGenDemo] ===== GLB DOWNLOAD ERROR =====');
@@ -447,6 +481,124 @@ export class CharacterGenDemo extends BaseScriptComponent {
             this.setStatus('Download failed - tap to retry');
             this.isGenerating = false;
         }
+    }
+
+    // ==================== Load Existing Character ====================
+
+    /**
+     * Load an existing character by ID, download its GLB, and start voice.
+     * Skips the entire generation pipeline.
+     */
+    private async loadExistingCharacter(characterId: string): Promise<void> {
+        print('[CharacterGenDemo] ===== LOADING EXISTING CHARACTER =====');
+        print(`[CharacterGenDemo] Character ID: ${characterId}`);
+        this.setStatus('Loading character...');
+
+        try {
+            const config = this.buildHttpConfig();
+            const httpClient = new EstuaryHttpClient(config);
+
+            const agent = await httpClient.getCharacter(characterId);
+            print(`[CharacterGenDemo] Character loaded: "${agent.name}" (${agent.id})`);
+            print(`[CharacterGenDemo]   modelUrl: ${agent.modelUrl || 'null'}`);
+            print(`[CharacterGenDemo]   modelPreviewUrl: ${agent.modelPreviewUrl || 'null'}`);
+            print(`[CharacterGenDemo]   modelStatus: ${agent.modelStatus || 'null'}`);
+            this.setStatus(`Loaded "${agent.name}"`);
+
+            const modelUrl = agent.modelUrl || agent.modelPreviewUrl;
+            if (!modelUrl) {
+                print('[CharacterGenDemo] Character has no 3D model — starting voice only');
+                this.setStatus('No 3D model — connecting voice...');
+                this.startVoiceConnection(agent.id, agent.name);
+                return;
+            }
+
+            // Reuse the download + display + voice flow
+            // @ts-ignore
+            const pipelineStart = getTime();
+            const status = {
+                modelUrl: agent.modelUrl,
+                modelPreviewUrl: agent.modelPreviewUrl,
+                modelStatus: agent.modelStatus || 'completed',
+                thumbnailUrl: null,
+                progress: 100,
+            } as ModelStatusResponse;
+
+            await this.downloadAndDisplayModel(httpClient, status, pipelineStart, agent.id, agent.name);
+        } catch (error: any) {
+            print('[CharacterGenDemo] ===== LOAD CHARACTER ERROR =====');
+            print('[CharacterGenDemo] ' + (error.message || String(error)));
+            if (error.stack) print('[CharacterGenDemo] Stack: ' + error.stack);
+            this.setStatus('Failed to load character');
+        }
+    }
+
+    // ==================== Voice Connection ====================
+
+    /**
+     * Start voice conversation with the generated character.
+     * Sets the character ID on EstuaryCredentials, then enables the
+     * EstuaryVoiceConnection SceneObject so it auto-connects.
+     */
+    private startVoiceConnection(agentId: string, agentName: string): void {
+        if (!this.voiceConnectionObject) {
+            print('[CharacterGenDemo] No voiceConnectionObject assigned — skipping voice connection');
+            return;
+        }
+
+        print('[CharacterGenDemo] ===== STARTING VOICE CONNECTION =====');
+        print(`[CharacterGenDemo] Character: "${agentName}" (${agentId})`);
+
+        // Update EstuaryCredentials with the generated character ID
+        const creds = EstuaryCredentials.instance;
+        if (creds) {
+            creds.characterId = agentId;
+            // serverUrl on credentials is already in wss:// format
+            print(`[CharacterGenDemo] Credentials updated: characterId=${agentId}, serverUrl=${creds.serverUrl}`);
+        } else {
+            print('[CharacterGenDemo] WARNING: No EstuaryCredentials singleton found');
+            print('[CharacterGenDemo] Make sure EstuaryCredentials is in the scene and enabled');
+        }
+
+        // Enable the voice connection SceneObject — this triggers its onAwake()
+        this.voiceConnectionObject.enabled = true;
+        print('[CharacterGenDemo] Voice connection SceneObject enabled');
+
+        // Send greeting after a short delay (let voice connection establish first)
+        const greeting = this.greetingMessage || `Hello! I just created you from a photo. Introduce yourself as ${agentName}!`;
+        print(`[CharacterGenDemo] Will send greeting after connection: "${greeting}"`);
+
+        // Poll for the voice connection to be ready, then send greeting
+        // @ts-ignore
+        const greetStart = getTime();
+        const greetEvent = this.createEvent('UpdateEvent');
+        greetEvent.bind(() => {
+            // @ts-ignore
+            const elapsed = getTime() - greetStart;
+
+            // Timeout after 30 seconds
+            if (elapsed > 30) {
+                greetEvent.enabled = false;
+                print('[CharacterGenDemo] Greeting timeout — voice connection did not establish in 30s');
+                return;
+            }
+
+            // Find the EstuaryVoiceConnection script and check if it's connected
+            const scripts = this.voiceConnectionObject.getComponents('Component.ScriptComponent') as any[];
+            for (let i = 0; i < scripts.length; i++) {
+                const sc = scripts[i] as any;
+                if (sc && typeof sc.sendMessage === 'function' && typeof sc.getCharacter === 'function') {
+                    const character = sc.getCharacter();
+                    if (character && character.isConnected) {
+                        greetEvent.enabled = false;
+                        print(`[CharacterGenDemo] Voice connected after ${elapsed.toFixed(1)}s — sending greeting`);
+                        this.setStatus('Talking...');
+                        sc.sendMessage(greeting);
+                        return;
+                    }
+                }
+            }
+        });
     }
 
     // ==================== Status Display ====================
