@@ -22,7 +22,6 @@ A Lens Studio project that demonstrates the full [Estuary](https://estuary-ai.co
 ```bash
 git clone https://github.com/estuary-ai/estuary-snap-spectacles-character-gen-demo.git
 cd estuary-snap-spectacles-character-gen-demo
-git submodule update --init --recursive
 ```
 
 ### 2. Open in Lens Studio

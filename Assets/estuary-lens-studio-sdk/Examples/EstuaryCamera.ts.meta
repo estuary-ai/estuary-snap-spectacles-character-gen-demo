@@ -1,0 +1,47 @@
+- !<AssetImportMetadata/bae9ba0b-10a9-436c-8cc4-5d233ee0c25d>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> b11ddc26-836c-4c6f-92d5-fa7bed2c104e
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> b11ddc26-836c-4c6f-92d5-fa7bed2c104e
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 52416170-49aa-4f69-9510-c333b11a136f
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/52416170-49aa-4f69-9510-c333b11a136f>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 949ad43a-7386-4e83-9ac4-23bc7232073a
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    captureResolution: false
+    debugMode: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - debugMode: true
+      captureResolution: !<float> 512.000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input bool debugMode = true {"hint":"Enable debug logging"}'
+    - '// @input float captureResolution = 512 {"hint":"Camera capture resolution (smaller dimension in pixels)"}'

@@ -1,0 +1,53 @@
+- !<AssetImportMetadata/c4e1f295-d80c-4677-a6d8-96595777ed99>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 234be11f-4c48-40f6-b10c-ccd2f554af03
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 234be11f-4c48-40f6-b10c-ccd2f554af03
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> d50e3260-5cce-4129-83a9-4beaa2cc0e8b
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/d50e3260-5cce-4129-83a9-4beaa2cc0e8b>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: 93dd796c-6c63-4676-ae13-66b80c722bac
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    credentialsObject: false
+    dynamicAudioOutputObject: false
+    internetModule: false
+    microphoneRecorderObject: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - credentialsObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      microphoneRecorderObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      dynamicAudioOutputObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      internetModule: !<reference.InternetModule> 00000000-0000-0000-0000-000000000000
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input SceneObject credentialsObject {"hint":"SceneObject with EstuaryCredentials script (contains API key & character ID)"}'
+    - '// @input SceneObject microphoneRecorderObject {"hint":"SceneObject with MicrophoneRecorder script (REQUIRED)"}'
+    - '// @input SceneObject dynamicAudioOutputObject {"hint":"SceneObject with DynamicAudioOutput script for voice playback"}'
+    - '// @input Asset.InternetModule internetModule {"hint":"Connect the InternetModule from your scene"}'
