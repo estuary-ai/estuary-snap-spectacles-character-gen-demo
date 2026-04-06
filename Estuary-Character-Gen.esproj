@@ -15,7 +15,7 @@ metaInfo:
     []
   lensName: Estuary Gen Demo
   lensDescriptors:
-    []
+    - EXPERIMENTAL_API
   lensApplicability:
     - Front
     - Back
