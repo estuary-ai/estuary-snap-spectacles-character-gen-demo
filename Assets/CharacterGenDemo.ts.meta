@@ -26,13 +26,18 @@
   ExportUid: 00000000-0000-0000-0000-000000000000
   PackagePolicy: CanBeUnpacked
   ScriptInputsHidden:
+    appearancePrompt: false
+    cameraIconMaterial: false
+    cancelIconMaterial: false
+    checkmarkIconMaterial: false
+    confirmButtonPrefab: false
     defaultMaterial: false
-    existingCharacterId: false
-    generateButtonObject: false
+    frameButtonPrefab: false
     greetingMessage: false
-    paperSanTexture: false
+    previewImageObject: false
     statusTextObject: false
     voiceConnectionObject: false
+    voicePrompt: false
   ScriptTypesHidden:
     {}
   ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
@@ -42,21 +47,31 @@
   Attachments:
     []
   DefaultScriptInputs:
-    - paperSanTexture: !<reference.Texture> 00000000-0000-0000-0000-000000000000
-      defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+    - defaultMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
       statusTextObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
-      generateButtonObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       voiceConnectionObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       greetingMessage: ""
-      existingCharacterId: ""
+      frameButtonPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      confirmButtonPrefab: !<reference.ObjectPrefab> 00000000-0000-0000-0000-000000000000
+      cameraIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      checkmarkIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      cancelIconMaterial: !<reference.Material> 00000000-0000-0000-0000-000000000000
+      previewImageObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
+      appearancePrompt: ""
+      voicePrompt: ""
   ScriptTypes:
     -
       {}
   InputLines:
-    - // @input Asset.Texture paperSanTexture
     - // @input Asset.Material defaultMaterial
     - // @input SceneObject statusTextObject
-    - // @input SceneObject generateButtonObject
     - // @input SceneObject voiceConnectionObject
     - // @input string greetingMessage
-    - // @input string existingCharacterId
+    - // @input Asset.ObjectPrefab frameButtonPrefab
+    - // @input Asset.ObjectPrefab confirmButtonPrefab
+    - // @input Asset.Material cameraIconMaterial
+    - // @input Asset.Material checkmarkIconMaterial
+    - // @input Asset.Material cancelIconMaterial
+    - // @input SceneObject previewImageObject
+    - // @input string appearancePrompt
+    - // @input string voicePrompt

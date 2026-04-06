@@ -87,7 +87,9 @@ export class PalmAnchor extends BaseScriptComponent {
         const isTracked = this.trackedHand.isTracked();
         if (!isTracked) {
             if (shouldLog) print('[PalmAnchor] Hand not tracked');
-            this.hide();
+            if (!this.forceShow) {
+                this.hide();
+            }
             this._hasInitialPosition = false;
             return;
         }
@@ -98,9 +100,13 @@ export class PalmAnchor extends BaseScriptComponent {
             wristPos = this.trackedHand.wrist.position;
         } catch (_: any) {}
 
+        this._lastWristPos = wristPos;
+
         if (!wristPos) {
             if (shouldLog) print('[PalmAnchor] wrist position unavailable');
-            this.hide();
+            if (!this.forceShow) {
+                this.hide();
+            }
             return;
         }
 
@@ -127,8 +133,20 @@ export class PalmAnchor extends BaseScriptComponent {
         // Show the gallery and update position
         this.show();
 
-        // Offset slightly above and in front of the wrist
-        const anchorPos = wristPos.add(new vec3(0, 5, 0));
+        // Offset to the right (pinky side) of the left wrist so it doesn't
+        // overlap with fingers. Use hand orientation for a proper lateral offset.
+        let rightOffset = new vec3(-22, 15, 0); // fallback: world-space left+up
+        try {
+            // Hand right vector: index knuckle to pinky knuckle direction
+            const indexPos = this.trackedHand.indexKnuckle.position;
+            const pinkyPos = this.trackedHand.pinkyKnuckle.position;
+            if (indexPos && pinkyPos) {
+                const handRight = pinkyPos.sub(indexPos).normalize();
+                // 22cm to the right (pinky side), 15cm up
+                rightOffset = handRight.uniformScale(22).add(new vec3(0, 15, 0));
+            }
+        } catch (_: any) {}
+        const anchorPos = wristPos.add(rightOffset);
 
         const transform = this.getSceneObject().getTransform();
 
@@ -178,15 +196,34 @@ export class PalmAnchor extends BaseScriptComponent {
 
     // ==================== Visibility Helpers ====================
 
+    /** Tracks which children were enabled before PalmAnchor hid them */
+    private _childStatesBeforeHide: boolean[] = [];
+
     private show(): void {
         if (!this._isVisible) {
-            this.setChildrenEnabled(true);
+            // Restore only children that were enabled before PalmAnchor hid them.
+            // Don't force-enable children that were explicitly hidden by other code
+            // (e.g., CharacterGallery toggling galleryRoot off).
+            const obj = this.getSceneObject();
+            const count = obj.getChildrenCount();
+            for (let i = 0; i < count; i++) {
+                if (i < this._childStatesBeforeHide.length && this._childStatesBeforeHide[i]) {
+                    obj.getChild(i).enabled = true;
+                }
+            }
             this._isVisible = true;
         }
     }
 
     private hide(): void {
         if (this._isVisible) {
+            // Snapshot each child's current enabled state before hiding
+            const obj = this.getSceneObject();
+            const count = obj.getChildrenCount();
+            this._childStatesBeforeHide = [];
+            for (let i = 0; i < count; i++) {
+                this._childStatesBeforeHide.push(obj.getChild(i).enabled);
+            }
             this.setChildrenEnabled(false);
             this._isVisible = false;
         }
@@ -206,10 +243,21 @@ export class PalmAnchor extends BaseScriptComponent {
 
     // ==================== Public API ====================
 
+    /** Last known wrist position (raw, no offset) */
+    private _lastWristPos: vec3 | null = null;
+
     /**
      * Returns whether the gallery is currently visible.
      */
     public isVisible(): boolean {
         return this._isVisible;
+    }
+
+    /**
+     * Returns the raw wrist position (no gallery offset applied).
+     * Used by the toggle button to stay near the carpal.
+     */
+    public getWristPosition(): vec3 | null {
+        return this._lastWristPos;
     }
 }

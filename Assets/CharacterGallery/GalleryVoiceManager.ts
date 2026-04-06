@@ -29,6 +29,12 @@ export class GalleryVoiceManager {
     /** Cached reference to the EstuaryVoiceConnection script */
     private voiceScript: any = null;
 
+    /** Active poll event (cancelled on character switch to prevent stale access) */
+    private _activeGreetEvent: any = null;
+
+    /** Whether a GLB spawn is in progress */
+    private _spawning: boolean = false;
+
     constructor(voiceConnectionObject: SceneObject, galleryComponent: BaseScriptComponent) {
         this.voiceConnectionObject = voiceConnectionObject;
         this.galleryComponent = galleryComponent;
@@ -69,6 +75,12 @@ export class GalleryVoiceManager {
     public switchCharacter(agentId: string, agentName: string): void {
         print('[Gallery] Switching voice to "' + agentName + '" (' + agentId + ')');
 
+        // Cancel any pending greet poll from previous character
+        if (this._activeGreetEvent) {
+            try { this._activeGreetEvent.enabled = false; } catch (_: any) {}
+            this._activeGreetEvent = null;
+        }
+
         this.currentAgentId = agentId;
 
         const vs = this.getVoiceScript();
@@ -101,40 +113,55 @@ export class GalleryVoiceManager {
         // @ts-ignore
         const greetStart = getTime();
         const greetEvent = this.galleryComponent.createEvent('UpdateEvent');
+        this._activeGreetEvent = greetEvent;
+
         greetEvent.bind(() => {
+            // Abort if character was switched while we were polling
+            if (this.currentAgentId !== agentId) {
+                greetEvent.enabled = false;
+                return;
+            }
+
             // @ts-ignore
             const elapsed = getTime() - greetStart;
 
             if (elapsed > 30) {
                 greetEvent.enabled = false;
+                this._activeGreetEvent = null;
                 print('[Gallery] Greeting timeout — voice did not connect in 30s');
                 return;
             }
 
-            const vs = this.getVoiceScript();
-            if (vs) {
-                const character = vs.getCharacter();
-                if (character && character.isConnected) {
-                    greetEvent.enabled = false;
-                    print('[Gallery] Voice connected after ' + elapsed.toFixed(1) + 's — sending greeting');
-                    vs.sendMessage(greeting);
+            try {
+                const vs = this.getVoiceScript();
+                if (vs) {
+                    const character = vs.getCharacter();
+                    if (character && character.isConnected) {
+                        greetEvent.enabled = false;
+                        this._activeGreetEvent = null;
+                        print('[Gallery] Voice connected after ' + elapsed.toFixed(1) + 's — sending greeting');
+                        vs.sendMessage(greeting);
 
-                    // Start voice session + mic
-                    try {
-                        character.startVoiceSession();
-                        vs.setMuted(false);
-                    } catch (_: any) {}
+                        try {
+                            character.startVoiceSession();
+                            vs.setMuted(false);
+                        } catch (_: any) {}
 
-                    return;
+                        return;
+                    }
                 }
+            } catch (e: any) {
+                greetEvent.enabled = false;
+                this._activeGreetEvent = null;
+                print('[Gallery] Poll error: ' + (e.message || e));
             }
-
         });
     }
 
     // ==================== Model Management ====================
 
     public destroyCurrentModel(): void {
+        // Destroy gallery-tracked model
         if (this.currentModelObject) {
             try {
                 this.currentModelObject.destroy();
@@ -144,6 +171,22 @@ export class GalleryVoiceManager {
             }
             this.currentModelObject = null;
         }
+
+        // Also destroy any orphaned models (e.g., from CharacterGenDemo photo capture)
+        try {
+            // @ts-ignore - Lens Studio global scene API
+            const rootCount = global.scene.getRootObjectsCount();
+            for (let i = rootCount - 1; i >= 0; i--) {
+                // @ts-ignore
+                const root = global.scene.getRootObject(i);
+                if (root.name === 'GeneratedCharacter' || root.name.startsWith('CharModel_')) {
+                    try {
+                        root.destroy();
+                        print('[Gallery] Destroyed orphaned model: ' + root.name);
+                    } catch (_: any) {}
+                }
+            }
+        } catch (_: any) {}
     }
 
     public async attemptGlbSpawn(
@@ -152,6 +195,12 @@ export class GalleryVoiceManager {
         parentSceneObject: SceneObject,
         material: Material | null
     ): Promise<void> {
+        // Guard against concurrent spawns (previous download still in progress)
+        if (this._spawning) {
+            print('[Gallery] GLB spawn already in progress — skipping');
+            return;
+        }
+
         let modelUrl = agent.modelUrl || agent.modelPreviewUrl;
         if (!modelUrl) {
             print('[Gallery] No model URL for "' + agent.name + '" - voice-only experience');
@@ -174,6 +223,8 @@ export class GalleryVoiceManager {
             return;
         }
 
+        this._spawning = true;
+        const spawnAgentId = agent.id;
         try {
             print('[Gallery] Attempting GLB download for "' + agent.name + '"');
             const sceneObj = await httpClient.downloadAndInstantiateGlb(
@@ -184,11 +235,19 @@ export class GalleryVoiceManager {
                     print('[Gallery] GLB progress: ' + Math.round(progress * 100) + '%');
                 }
             );
-            this.currentModelObject = sceneObj;
-            print('[Gallery] GLB model spawned for "' + agent.name + '"');
+            // Only assign if we're still on the same character (user may have switched mid-download)
+            if (this.currentAgentId === spawnAgentId) {
+                this.currentModelObject = sceneObj;
+                print('[Gallery] GLB model spawned for "' + agent.name + '"');
+            } else {
+                // User switched characters while downloading — destroy the stale model
+                try { sceneObj.destroy(); } catch (_: any) {}
+                print('[Gallery] GLB arrived for "' + agent.name + '" but character already switched — destroyed');
+            }
         } catch (e: any) {
             print('[Gallery] GLB instantiation failed (known LS bug) - voice-only mode');
             print('[Gallery] Error: ' + (e.message || e));
         }
+        this._spawning = false;
     }
 }

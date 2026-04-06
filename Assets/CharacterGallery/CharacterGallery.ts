@@ -25,8 +25,9 @@ const CARDS_PER_PAGE = 6;
 const GRID_ROWS = 3;
 const GRID_COLS = 2;
 
-/** Card spacing in cm — equal in both axes */
-const CARD_SPACING = 7;
+/** Card spacing in cm */
+const CARD_SPACING_X = 7;
+const CARD_SPACING_Y = 4;
 
 const SERVER_URL = 'https://api.estuary-ai.com';
 const PLAYER_ID = 'spectacles-gallery';
@@ -164,7 +165,7 @@ export class CharacterGallery extends BaseScriptComponent {
         // @ts-ignore
         this.galleryRoot = global.scene.createSceneObject('GalleryRoot');
         this.galleryRoot.setParent(anchorObj);
-        this.galleryRoot.getTransform().setLocalPosition(new vec3(0, 8, 0));
+        this.galleryRoot.getTransform().setLocalPosition(new vec3(0, 0, 5));
 
         // Grid container for cards
         // @ts-ignore
@@ -189,6 +190,9 @@ export class CharacterGallery extends BaseScriptComponent {
     /** Wrist toggle button SceneObject */
     private wristToggleObj: SceneObject | null = null;
 
+    /** Toggle button script reference for syncing isOn state */
+    private _toggleButtonScript: any = null;
+
     /** Whether the gallery is currently shown */
     private galleryVisible: boolean = false;
 
@@ -198,50 +202,125 @@ export class CharacterGallery extends BaseScriptComponent {
             return;
         }
 
-        // Instantiate the RoundButton prefab as a child of the PalmAnchor root
-        // so it tracks with the hand but sits at wrist level
-        const anchorObj = this.galleryRoot!.getParent();
-        this.wristToggleObj = this.togglePrefab.instantiate(anchorObj);
-        // Position well below the gallery, at wrist level
-        this.wristToggleObj.getTransform().setLocalPosition(new vec3(0, -5, 0));
+        // Instantiate the toggle button as a child of CharacterGallery (NOT PalmAnchor)
+        // so we can position it at the raw wrist position independently of the gallery offset
+        this.wristToggleObj = this.togglePrefab.instantiate(this.getSceneObject());
+        this.wristToggleObj.getTransform().setLocalPosition(new vec3(0, 0, 0));
         this.wristToggleObj.getTransform().setLocalScale(new vec3(0.7, 0.7, 0.7));
 
         // Set label to "Gallery"
         this.findAndSetText(this.wristToggleObj, 'Gallery');
 
-        // Bind toggle via onValueChange (fires once with 1=on, 0=off)
-        // Falls back to onTriggerUp if onValueChange isn't available
-        const scripts = this.wristToggleObj.getComponents('Component.ScriptComponent') as any[];
-        let bound = false;
-        for (let i = 0; i < scripts.length; i++) {
-            const sc = scripts[i] as any;
-            if (sc && sc.onValueChange && sc.onValueChange.add) {
-                sc.onValueChange.add((value: number) => {
-                    this.galleryVisible = value === 1;
-                    if (this.galleryRoot) {
-                        this.galleryRoot.enabled = this.galleryVisible;
-                    }
-                    print('[Gallery] Toggle: gallery ' + (this.galleryVisible ? 'SHOWN' : 'HIDDEN'));
-                });
-                bound = true;
-                break;
-            }
-        }
-        if (!bound) {
-            // Fallback for non-toggle buttons
-            this.bindPrefabTap(this.wristToggleObj, () => {
-                this.galleryVisible = !this.galleryVisible;
-                if (this.galleryRoot) {
-                    this.galleryRoot.enabled = this.galleryVisible;
+        // Configure button: Direct targeting only, toggleable, start in OFF state
+        try {
+            const toggleScripts = this.wristToggleObj.getComponents('Component.ScriptComponent') as any[];
+            for (let i = 0; i < toggleScripts.length; i++) {
+                const sc = toggleScripts[i] as any;
+                // Set on the Element/Interactable if it has targetingMode
+                if (sc && sc.interactable && sc.interactable.targetingMode !== undefined) {
+                    sc.interactable.targetingMode = 1; // Direct only
                 }
-                print('[Gallery] Toggle: gallery ' + (this.galleryVisible ? 'SHOWN' : 'HIDDEN'));
-            });
-        }
+                if (sc && sc.targetingMode !== undefined) {
+                    sc.targetingMode = 1;
+                }
+                // Make toggleable and start OFF (highlighted = gallery active)
+                if (sc && typeof sc.setIsToggleable === 'function') {
+                    sc.setIsToggleable(true);
+                    sc.isOn = false; // OFF = gallery hidden
+                    this._toggleButtonScript = sc;
+                }
+            }
+        } catch (_: any) {}
+
+        // Use onTriggerUp with manual toggle + debounce.
+        // Do NOT use onValueChange — it fires spuriously when hand tracking drops.
+        let lastToggleTime = 0;
+        this.bindPrefabTap(this.wristToggleObj, () => {
+            // @ts-ignore
+            const now: number = getTime();
+            // Debounce: ignore triggers within 0.3 seconds of each other
+            if (now - lastToggleTime < 0.3) return;
+            lastToggleTime = now;
+
+            this.galleryVisible = !this.galleryVisible;
+            if (this.galleryRoot) {
+                this.galleryRoot.enabled = this.galleryVisible;
+            }
+
+            // Sync toggle button visual: ON = gallery active (highlighted)
+            if (this._toggleButtonScript && typeof this._toggleButtonScript.isOn !== 'undefined') {
+                this._toggleButtonScript.isOn = this.galleryVisible;
+            }
+
+            // Coordinate with PalmAnchor — prevent hand tracking from overriding toggle
+            try {
+                const parent = this.getSceneObject().getParent();
+                if (parent) {
+                    const palmScripts = parent.getComponents('Component.ScriptComponent') as any[];
+                    for (const sc of palmScripts) {
+                        if (sc && typeof sc.forceShow !== 'undefined') {
+                            sc.forceShow = this.galleryVisible;
+                            break;
+                        }
+                    }
+                }
+            } catch (_: any) {}
+
+            print('[Gallery] Toggle: gallery ' + (this.galleryVisible ? 'SHOWN' : 'HIDDEN'));
+        });
+
+        // Track toggle button to raw wrist position (not PalmAnchor's offset position)
+        this.createEvent('UpdateEvent').bind(() => {
+            if (!this.wristToggleObj || !this.palmAnchor) return;
+            const wristPos = this.palmAnchor.getWristPosition();
+            if (wristPos) {
+                // 5cm to the right of the carpal
+                const buttonPos = wristPos.add(new vec3(8, 0, -2));
+                this.wristToggleObj.getTransform().setWorldPosition(buttonPos);
+
+                // Face camera
+                try {
+                    // @ts-ignore
+                    const camPos = global.scene.getRootObject(0).getTransform().getWorldPosition();
+                    const dir = camPos.sub(buttonPos).normalize();
+                    const worldUp = new vec3(0, 1, 0);
+                    const right = worldUp.cross(dir).normalize();
+                    const up = dir.cross(right).normalize();
+                    this.wristToggleObj.getTransform().setWorldRotation(quat.lookAt(dir, up));
+                } catch (_: any) {}
+
+                if (!this.wristToggleObj.enabled) {
+                    this.wristToggleObj.enabled = true;
+                }
+            }
+        });
 
         print('[Gallery] Wrist toggle created');
     }
 
     private findAndSetText(obj: SceneObject, text: string): boolean {
+        // First try to find and update existing text components
+        if (this.findAndUpdateText(obj, text)) return true;
+
+        // Fallback: create a new Text3D in front of the button
+        try {
+            // @ts-ignore
+            const labelObj = global.scene.createSceneObject('Label_' + text);
+            labelObj.setParent(obj);
+            // Position in front of the button to avoid z-fighting
+            labelObj.getTransform().setLocalPosition(new vec3(0, 0, -1.5));
+            const t3d = labelObj.createComponent('Component.Text3D') as any;
+            if (t3d) {
+                t3d.text = text;
+                try { t3d.size = 1.5; } catch (_: any) {}
+                try { t3d.horizontalAlignment = 1; } catch (_: any) {} // Center
+            }
+            return true;
+        } catch (_: any) {}
+        return false;
+    }
+
+    private findAndUpdateText(obj: SceneObject, text: string): boolean {
         try {
             const t = obj.getComponent('Component.Text') as any;
             if (t) { t.text = text; return true; }
@@ -252,9 +331,68 @@ export class CharacterGallery extends BaseScriptComponent {
         } catch (_: any) {}
         const count = obj.getChildrenCount();
         for (let i = 0; i < count; i++) {
-            if (this.findAndSetText(obj.getChild(i), text)) return true;
+            if (this.findAndUpdateText(obj.getChild(i), text)) return true;
         }
         return false;
+    }
+
+    /**
+     * Disable depth test on a text/visual component so it renders on top of button surfaces.
+     * Text3D doesn't expose mainPass directly — find the RenderMeshVisual it uses internally.
+     */
+    private disableDepthOnComponent(component: any, obj: SceneObject): void {
+        try {
+            // Try mainPass directly on the component
+            if (component.mainPass) {
+                component.mainPass.depthTest = false;
+                component.mainPass.depthWrite = false;
+            }
+            // Try via mainMaterial
+            if (component.mainMaterial && component.mainMaterial.mainPass) {
+                component.mainMaterial.mainPass.depthTest = false;
+                component.mainMaterial.mainPass.depthWrite = false;
+            }
+            // Try getMaterial(0) for multi-material components
+            if (typeof component.getMaterial === 'function') {
+                const mat = component.getMaterial(0);
+                if (mat && mat.mainPass) {
+                    mat.mainPass.depthTest = false;
+                    mat.mainPass.depthWrite = false;
+                }
+            }
+            // Text3D uses a RenderMeshVisual internally — find it on the same or child objects
+            const rmv = obj.getComponent('Component.RenderMeshVisual') as any;
+            if (rmv) {
+                const matCount = typeof rmv.getMaterialsCount === 'function' ? rmv.getMaterialsCount() : 1;
+                for (let m = 0; m < matCount; m++) {
+                    try {
+                        const mat = rmv.getMaterial(m);
+                        if (mat && mat.mainPass) {
+                            mat.mainPass.depthTest = false;
+                            mat.mainPass.depthWrite = false;
+                        }
+                    } catch (_: any) {}
+                }
+            }
+            // Also check children for RenderMeshVisual (Text3D may put it on a child)
+            const childCount = obj.getChildrenCount();
+            for (let c = 0; c < childCount; c++) {
+                const child = obj.getChild(c);
+                const childRmv = child.getComponent('Component.RenderMeshVisual') as any;
+                if (childRmv) {
+                    const matCount = typeof childRmv.getMaterialsCount === 'function' ? childRmv.getMaterialsCount() : 1;
+                    for (let m = 0; m < matCount; m++) {
+                        try {
+                            const mat = childRmv.getMaterial(m);
+                            if (mat && mat.mainPass) {
+                                mat.mainPass.depthTest = false;
+                                mat.mainPass.depthWrite = false;
+                            }
+                        } catch (_: any) {}
+                    }
+                }
+            }
+        } catch (_: any) {}
     }
 
     // ==================== Grid Rendering ====================
@@ -273,8 +411,8 @@ export class CharacterGallery extends BaseScriptComponent {
         print('[Gallery] Rendering page ' + (pageIndex + 1) + '/' + this.totalPages + ' (' + pageChars.length + ' cards)');
 
         // Center the grid
-        const totalW = (GRID_COLS - 1) * CARD_SPACING;
-        const totalH = (GRID_ROWS - 1) * CARD_SPACING;
+        const totalW = (GRID_COLS - 1) * CARD_SPACING_X;
+        const totalH = (GRID_ROWS - 1) * CARD_SPACING_Y;
 
         for (let i = 0; i < pageChars.length; i++) {
             const agent = pageChars[i];
@@ -285,8 +423,8 @@ export class CharacterGallery extends BaseScriptComponent {
             const instance = this.cardPrefab.instantiate(this.gridContainer!);
 
             // Position in grid (centered)
-            const x = col * CARD_SPACING - totalW / 2;
-            const y = -row * CARD_SPACING + totalH / 2;
+            const x = col * CARD_SPACING_X - totalW / 2;
+            const y = -row * CARD_SPACING_Y + totalH / 2;
             instance.getTransform().setLocalPosition(new vec3(x, y, 0));
 
             // Wrap in CharacterCard (binds tap handler + updates label)
@@ -307,13 +445,12 @@ export class CharacterGallery extends BaseScriptComponent {
     private buildNavigation(): void {
         const prefab = this.navPrefab || this.cardPrefab;
 
-        // Parent nav to the PalmAnchor root (not galleryRoot) so it sits at wrist level
+        // Parent nav to galleryRoot so it shows/hides with the gallery
         // @ts-ignore
         const navContainer = global.scene.createSceneObject('NavContainer');
-        const anchorObj = this.galleryRoot!.getParent();
-        navContainer.setParent(anchorObj);
-        // Position near carpal — PalmAnchor adds +5 above wrist, so -4 brings it back down
-        navContainer.getTransform().setLocalPosition(new vec3(0, -4, 0));
+        navContainer.setParent(this.galleryRoot!);
+        // Position below the grid: 3 rows * 4cm spacing = 8cm total, cards span +4 to -4, so -7 clears bottom
+        navContainer.getTransform().setLocalPosition(new vec3(0, -7, 0));
 
         // Prev button — tight spacing near center
         this.prevBtnInstance = prefab.instantiate(navContainer);
@@ -416,9 +553,20 @@ export class CharacterGallery extends BaseScriptComponent {
             // @ts-ignore
             const modelParent = global.scene.createSceneObject('CharModel_' + agent.name);
             try {
-                const cam = this.getSceneObject().getTransform();
-                const pos = cam.getWorldPosition().add(cam.forward.uniformScale(-100));
-                modelParent.getTransform().setWorldPosition(pos);
+                // Position model in front of wherever the user is currently looking
+                // @ts-ignore - Lens Studio global scene API
+                const camTransform = global.scene.getRootObject(0).getTransform();
+                const camPos = camTransform.getWorldPosition();
+                const forward = camTransform.forward;
+                const modelPos = camPos.add(forward.uniformScale(-100));
+                modelParent.getTransform().setWorldPosition(modelPos);
+
+                // Orient model to face the camera
+                const direction = camPos.sub(modelPos).normalize();
+                const worldUp = new vec3(0, 1, 0);
+                const right = worldUp.cross(direction).normalize();
+                const up = direction.cross(right).normalize();
+                modelParent.getTransform().setWorldRotation(quat.lookAt(direction, up));
             } catch (_: any) {
                 modelParent.getTransform().setWorldPosition(new vec3(0, 0, -100));
             }
