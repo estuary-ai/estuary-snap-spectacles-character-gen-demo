@@ -2320,6 +2320,7 @@
   ScriptInputsDefault:
     appearancePrompt: true
     voicePrompt: true
+    personaPrompt: true
   ScriptTypesDefault:
     {}
   ScriptInputs:
@@ -2336,6 +2337,7 @@
       previewImageObject: !<reference.SceneObject> 741af40d-a83d-4368-ab9a-dcce44c3eb81
       appearancePrompt: ""
       voicePrompt: ""
+      personaPrompt: ""
   ScriptTypes:
     "":
       {}
@@ -2512,6 +2514,7 @@
     "":
       credentialsObject: !<reference.SceneObject> 7937bc34-51be-4264-b41a-73ec9d51ec9a
       microphoneRecorderObject: !<reference.SceneObject> 23bb999b-d65a-4485-9445-c9e9ad9eebab
+      micAudioTrack: !<reference.AudioTrackAsset> 5661299d-e1f4-4f06-a343-8b22eca58e06
       dynamicAudioOutputObject: !<reference.SceneObject> f9921554-d918-4320-92f2-7f44b27e88ea
       internetModule: !<reference.InternetModule> 81ada6be-c557-409b-a4d0-1435b5342a5c
   ScriptTypes:
