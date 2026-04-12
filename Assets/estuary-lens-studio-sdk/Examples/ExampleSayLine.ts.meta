@@ -1,0 +1,47 @@
+- !<AssetImportMetadata/04110d71-fe25-4f3a-93ba-fb2bdb5470f5>
+  ImportedAssetIds:
+    TypeScriptAsset: !<reference> 6ff8800a-a5fc-4427-a708-c4ea462934be
+  ImporterName: TypeScriptAssetImporter
+  PrimaryAsset: !<reference> 6ff8800a-a5fc-4427-a708-c4ea462934be
+  PackageType: NotAPackage
+  LegacyPackagePolicy: ~
+  ExtraData:
+    {}
+  AssetDataMap:
+    TypeScriptAsset: !<own> 0c69c9ea-98ef-4726-a1c4-dd48cc1c971b
+  DependentFiles:
+    []
+  ImporterSettings: !<AssetImporterSettings>
+    {}
+  CompressionSettings: !<own> 00000000-0000-0000-0000-000000000000
+- !<TypeScriptAssetData/0c69c9ea-98ef-4726-a1c4-dd48cc1c971b>
+  SvgIcon: ""
+  SetupScript:
+    code: ""
+  Description: ""
+  VersionMajor: 0
+  VersionMinor: 0
+  VersionPatch: 0
+  ComponentUid: ecb42aea-742b-4b0c-b94d-878cf68f715e
+  ExportUid: 00000000-0000-0000-0000-000000000000
+  PackagePolicy: CanBeUnpacked
+  ScriptInputsHidden:
+    autoSpeakOnConnect: false
+    delayBeforeFirstLine: false
+  ScriptTypesHidden:
+    {}
+  ReadMe: !<reference> 00000000-0000-0000-0000-000000000000
+  DeclarationFile: !<reference> 00000000-0000-0000-0000-000000000000
+  Tags:
+    []
+  Attachments:
+    []
+  DefaultScriptInputs:
+    - delayBeforeFirstLine: !<float> 2.000000
+      autoSpeakOnConnect: true
+  ScriptTypes:
+    -
+      {}
+  InputLines:
+    - '// @input float delayBeforeFirstLine = 2 {"hint":"Seconds to wait after connection before first line"}'
+    - '// @input bool autoSpeakOnConnect = true {"hint":"Automatically speak the first line when connected"}'

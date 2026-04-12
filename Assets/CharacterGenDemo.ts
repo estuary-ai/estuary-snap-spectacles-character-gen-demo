@@ -109,6 +109,11 @@ export class CharacterGenDemo extends BaseScriptComponent {
     @allowUndefined
     voicePrompt: string;
 
+    /** Custom persona prompt (replaces default, char limit applied automatically) */
+    @input
+    @allowUndefined
+    personaPrompt: string;
+
     // ==================== Private State ====================
 
     private statusText3D: any = null;
@@ -630,6 +635,7 @@ export class CharacterGenDemo extends BaseScriptComponent {
             const options: ImageToCharacterOptions = {};
             if (this.appearancePrompt) options.appearancePrompt = this.appearancePrompt;
             if (this.voicePrompt) options.voicePrompt = this.voicePrompt;
+            if (this.personaPrompt) options.personaPrompt = this.personaPrompt;
             const agent = await httpClient.uploadImageToCharacter(imageBase64, 'image/png', options);
             print('[CharacterGenDemo] Character created: "' + agent.name + '" (' + agent.id + ')');
             this.setStatus('Character "' + agent.name + '" created!');

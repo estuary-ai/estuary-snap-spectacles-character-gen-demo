@@ -34,6 +34,7 @@
     defaultMaterial: false
     frameButtonPrefab: false
     greetingMessage: false
+    personaPrompt: false
     previewImageObject: false
     statusTextObject: false
     voiceConnectionObject: false
@@ -59,6 +60,7 @@
       previewImageObject: !<reference.SceneObject> 00000000-0000-0000-0000-000000000000
       appearancePrompt: ""
       voicePrompt: ""
+      personaPrompt: ""
   ScriptTypes:
     -
       {}
@@ -75,3 +77,4 @@
     - // @input SceneObject previewImageObject
     - // @input string appearancePrompt
     - // @input string voicePrompt
+    - // @input string personaPrompt
